@@ -318,9 +318,9 @@ function seedDatabase(db: Database.Database) {
   const games = [
     { id: uuidv4(), name: 'Valorant', slug: 'valorant', icon: 'https://cdn2.steamgriddb.com/icon/04e35ab54388b691735c8b4231d387a1.png', description: 'Tactical 5v5 character-based shooter' },
     { id: uuidv4(), name: 'Mobile Legends', slug: 'mobile-legends', icon: 'https://play-lh.googleusercontent.com/hXSJ_2koqdr_Uxdnd_P0HxDjR2tXEJ2rI1AEeHr8-I33a-75_v8l_i61tpAJ-CYxhLPQA-3YxYAVE_ro7uG0', description: '5v5 MOBA on mobile' },
-    { id: uuidv4(), name: 'PUBG Mobile', slug: 'pubg-mobile', icon: 'https://play-lh.googleusercontent.com/pWaaPl491ByUQ1cTUKMzhEYSG0RlSJuwUtHvVk4TSIU8jhxHz9lqmFCEjgPeeSX_5uZJ9ftqMHyjgvq5auyg=s512-rw', description: 'Battle royale shooter' },
-    { id: uuidv4(), name: 'Genshin Impact', slug: 'genshin-impact', icon: 'https://play-lh.googleusercontent.com/aWrGocSA7hEuk1qAPe7L4T57LvLKrwwH26cK2_LOqxRQMQX7j3uHYojC-EKWgYEV2PdrmE0ahqvvhLhXrAGk6Q=s512-rw', description: 'Open world action RPG' },
-    { id: uuidv4(), name: 'Free Fire', slug: 'free-fire', icon: 'https://play-lh.googleusercontent.com/DiYgZtZI2lSaVnDkRUdPeI2stEhgRxnfvXbWrW3EtMt3Xo_9Xp-EWq7NBXvTdHDJFTL2v2nm1sWBpdPf2pFGRw=s512-rw', description: 'Fast-paced battle royale' },
+    { id: uuidv4(), name: 'PUBG Mobile', slug: 'pubg-mobile', icon: 'https://play-lh.googleusercontent.com/zCSGnBtZk0Lmp1BAbyaZfLktDzHmC6oke67qzz3G1lBegAF2asyt5KzXOJ2PVdHDYkU=s512', description: 'Battle royale shooter' },
+    { id: uuidv4(), name: 'Genshin Impact', slug: 'genshin-impact', icon: 'https://play-lh.googleusercontent.com/YQqyKaXX-63krqsfIzUEJWUWLINxcb5tbS6QVySdxbS7eZV7YB2dUjUvX27xA0TIGtfxQ5v-tQjwlT5tTB-O=s512', description: 'Open world action RPG' },
+    { id: uuidv4(), name: 'Free Fire', slug: 'free-fire', icon: 'https://play-lh.googleusercontent.com/VxqoBX9loIqsESn5OPhXDLLYw8YFAlLJX3TJUb7ovyIQdRRWwGuG3jD9konTZAeWzd8VlVTDt8fkJ8BAEU4ZHQ=s512', description: 'Fast-paced battle royale' },
     { id: uuidv4(), name: 'Apex Legends', slug: 'apex-legends', icon: 'https://cdn2.steamgriddb.com/icon/5c76b1cc75d7fb39b6887a5cc0b836d5.png', description: 'Hero-based battle royale' },
   ];
 
