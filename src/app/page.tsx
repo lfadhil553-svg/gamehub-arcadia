@@ -82,16 +82,19 @@ export default function HomePage() {
         <h3 className="text-3xl font-bold text-center mb-12">Game <span className="gradient-text">Populer</span></h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
-            { name: 'Valorant', icon: '🎯' },
-            { name: 'Mobile Legends', icon: '⚔️' },
-            { name: 'PUBG Mobile', icon: '🔫' },
-            { name: 'Genshin Impact', icon: '🌟' },
-            { name: 'Free Fire', icon: '🔥' },
-            { name: 'Apex Legends', icon: '🦅' },
+            { name: 'Valorant', icon: 'https://cdn2.steamgriddb.com/icon/04e35ab54388b691735c8b4231d387a1.png' },
+            { name: 'Mobile Legends', icon: 'https://play-lh.googleusercontent.com/hXSJ_2koqdr_Uxdnd_P0HxDjR2tXEJ2rI1AEeHr8-I33a-75_v8l_i61tpAJ-CYxhLPQA-3YxYAVE_ro7uG0' },
+            { name: 'PUBG Mobile', icon: 'https://play-lh.googleusercontent.com/zCSGnBtZk0Lmp1BAbyaZfLktDzHmC6oke67qzz3G1lBegAF2asyt5KzXOJ2PVdHDYkU=s512' },
+            { name: 'Genshin Impact', icon: 'https://play-lh.googleusercontent.com/YQqyKaXX-63krqsfIzUEJWUWLINxcb5tbS6QVySdxbS7eZV7YB2dUjUvX27xA0TIGtfxQ5v-tQjwlT5tTB-O=s512' },
+            { name: 'Free Fire', icon: 'https://play-lh.googleusercontent.com/VxqoBX9loIqsESn5OPhXDLLYw8YFAlLJX3TJUb7ovyIQdRRWwGuG3jD9konTZAeWzd8VlVTDt8fkJ8BAEU4ZHQ=s512' },
+            { name: 'Apex Legends', icon: 'https://cdn2.steamgriddb.com/icon/5c76b1cc75d7fb39b6887a5cc0b836d5.png' },
           ].map((game, i) => (
             <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
               className="card text-center !p-6 cursor-pointer hover:glow-primary">
-              <div className="text-4xl mb-3">{game.icon}</div>
+              <div className="flex justify-center mb-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={game.icon} alt={game.name} className="w-12 h-12 rounded-lg object-cover" loading="lazy" />
+              </div>
               <p className="font-semibold text-sm">{game.name}</p>
             </motion.div>
           ))}
