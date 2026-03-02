@@ -7,8 +7,8 @@ import type { User } from '@/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'arcadia-secret-key-change-in-production-2024';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'arcadia-refresh-secret-key-change-in-production-2024';
-const ACCESS_TOKEN_EXPIRY = '15m';
-const REFRESH_TOKEN_EXPIRY = '7d';
+const ACCESS_TOKEN_EXPIRY = '30d';
+const REFRESH_TOKEN_EXPIRY = '90d';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MINUTES = 15;
 

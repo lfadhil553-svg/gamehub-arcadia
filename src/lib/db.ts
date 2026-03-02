@@ -7,17 +7,17 @@ const DB_PATH = path.join(process.cwd(), 'gamehub.db');
 let db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
-    if (!db) {
-        db = new Database(DB_PATH);
-        db.pragma('journal_mode = WAL');
-        db.pragma('foreign_keys = ON');
-        initializeDatabase(db);
-    }
-    return db;
+  if (!db) {
+    db = new Database(DB_PATH);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    initializeDatabase(db);
+  }
+  return db;
 }
 
 function initializeDatabase(db: Database.Database) {
-    db.exec(`
+  db.exec(`
     -- Users
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -307,195 +307,195 @@ function initializeDatabase(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_party_chat_party ON party_chat(party_id);
   `);
 
-    // Seed data if empty
-    const gameCount = db.prepare('SELECT COUNT(*) as count FROM games').get() as { count: number };
-    if (gameCount.count === 0) {
-        seedDatabase(db);
-    }
+  // Seed data if empty
+  const gameCount = db.prepare('SELECT COUNT(*) as count FROM games').get() as { count: number };
+  if (gameCount.count === 0) {
+    seedDatabase(db);
+  }
 }
 
 function seedDatabase(db: Database.Database) {
-    const games = [
-        { id: uuidv4(), name: 'Valorant', slug: 'valorant', icon: 'https://upload.wikimedia.org/wikipedia/commons/f/fc/Valorant_logo_-_pink_color_version.svg', description: 'Tactical 5v5 character-based shooter' },
-        { id: uuidv4(), name: 'Mobile Legends', slug: 'mobile-legends', icon: 'https://upload.wikimedia.org/wikipedia/commons/4/43/Logo_of_Mobile_Legends_Bang_Bang.webp', description: '5v5 MOBA on mobile' },
-        { id: uuidv4(), name: 'PUBG Mobile', slug: 'pubg-mobile', icon: 'https://upload.wikimedia.org/wikipedia/commons/9/9e/PUBG_Mobile_logo.png', description: 'Battle royale shooter' },
-        { id: uuidv4(), name: 'Genshin Impact', slug: 'genshin-impact', icon: 'https://upload.wikimedia.org/wikipedia/en/5/5d/Genshin_Impact_logo.svg', description: 'Open world action RPG' },
-        { id: uuidv4(), name: 'Free Fire', slug: 'free-fire', icon: 'https://upload.wikimedia.org/wikipedia/commons/f/f9/Free_Fire_logo.webp', description: 'Fast-paced battle royale' },
-        { id: uuidv4(), name: 'Apex Legends', slug: 'apex-legends', icon: 'https://upload.wikimedia.org/wikipedia/commons/d/db/Apex_legends_cover.jpg', description: 'Hero-based battle royale' },
+  const games = [
+    { id: uuidv4(), name: 'Valorant', slug: 'valorant', icon: 'https://cdn2.steamgriddb.com/icon/04e35ab54388b691735c8b4231d387a1.png', description: 'Tactical 5v5 character-based shooter' },
+    { id: uuidv4(), name: 'Mobile Legends', slug: 'mobile-legends', icon: 'https://play-lh.googleusercontent.com/hXSJ_2koqdr_Uxdnd_P0HxDjR2tXEJ2rI1AEeHr8-I33a-75_v8l_i61tpAJ-CYxhLPQA-3YxYAVE_ro7uG0', description: '5v5 MOBA on mobile' },
+    { id: uuidv4(), name: 'PUBG Mobile', slug: 'pubg-mobile', icon: 'https://play-lh.googleusercontent.com/pWaaPl491ByUQ1cTUKMzhEYSG0RlSJuwUtHvVk4TSIU8jhxHz9lqmFCEjgPeeSX_5uZJ9ftqMHyjgvq5auyg=s512-rw', description: 'Battle royale shooter' },
+    { id: uuidv4(), name: 'Genshin Impact', slug: 'genshin-impact', icon: 'https://play-lh.googleusercontent.com/aWrGocSA7hEuk1qAPe7L4T57LvLKrwwH26cK2_LOqxRQMQX7j3uHYojC-EKWgYEV2PdrmE0ahqvvhLhXrAGk6Q=s512-rw', description: 'Open world action RPG' },
+    { id: uuidv4(), name: 'Free Fire', slug: 'free-fire', icon: 'https://play-lh.googleusercontent.com/DiYgZtZI2lSaVnDkRUdPeI2stEhgRxnfvXbWrW3EtMt3Xo_9Xp-EWq7NBXvTdHDJFTL2v2nm1sWBpdPf2pFGRw=s512-rw', description: 'Fast-paced battle royale' },
+    { id: uuidv4(), name: 'Apex Legends', slug: 'apex-legends', icon: 'https://cdn2.steamgriddb.com/icon/5c76b1cc75d7fb39b6887a5cc0b836d5.png', description: 'Hero-based battle royale' },
+  ];
+
+  const insertGame = db.prepare('INSERT INTO games (id, name, slug, icon, description) VALUES (?, ?, ?, ?, ?)');
+  const insertRank = db.prepare('INSERT INTO ranks (id, game_id, name, tier, icon) VALUES (?, ?, ?, ?, ?)');
+  const insertMode = db.prepare('INSERT INTO game_modes (id, game_id, name) VALUES (?, ?, ?)');
+  const insertRole = db.prepare('INSERT INTO game_roles (id, game_id, name, icon) VALUES (?, ?, ?, ?)');
+
+  const rankSets: Record<string, Array<{ name: string; icon: string }>> = {
+    'valorant': [
+      { name: 'Iron', icon: '🟤' }, { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' },
+      { name: 'Gold', icon: '🥇' }, { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' },
+      { name: 'Ascendant', icon: '🌟' }, { name: 'Immortal', icon: '👑' }, { name: 'Radiant', icon: '⭐' }
+    ],
+    'mobile-legends': [
+      { name: 'Warrior', icon: '⚔️' }, { name: 'Elite', icon: '🛡️' }, { name: 'Master', icon: '🏅' },
+      { name: 'Grandmaster', icon: '🎖️' }, { name: 'Epic', icon: '💜' }, { name: 'Legend', icon: '🏆' },
+      { name: 'Mythic', icon: '👑' }, { name: 'Mythical Glory', icon: '⭐' }
+    ],
+    'pubg-mobile': [
+      { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
+      { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Crown', icon: '👑' },
+      { name: 'Ace', icon: '🌟' }, { name: 'Conqueror', icon: '⭐' }
+    ],
+    'genshin-impact': [
+      { name: 'AR 1-15', icon: '🌱' }, { name: 'AR 16-25', icon: '🌿' }, { name: 'AR 26-35', icon: '🌳' },
+      { name: 'AR 36-45', icon: '🏔️' }, { name: 'AR 46-55', icon: '⛰️' }, { name: 'AR 56+', icon: '🏯' }
+    ],
+    'free-fire': [
+      { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
+      { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Heroic', icon: '👑' },
+      { name: 'Grandmaster', icon: '⭐' }
+    ],
+    'apex-legends': [
+      { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
+      { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Master', icon: '👑' },
+      { name: 'Predator', icon: '⭐' }
+    ],
+  };
+
+  const modeSets: Record<string, string[]> = {
+    'valorant': ['Competitive', 'Unrated', 'Spike Rush', 'Deathmatch'],
+    'mobile-legends': ['Ranked', 'Classic', 'Brawl', 'Custom'],
+    'pubg-mobile': ['Classic', 'Ranked', 'Arena', 'Payload'],
+    'genshin-impact': ['Co-op Domain', 'Spiral Abyss', 'Open World'],
+    'free-fire': ['Battle Royale', 'Clash Squad', 'Ranked'],
+    'apex-legends': ['Battle Royale', 'Ranked', 'Arenas', 'Control'],
+  };
+
+  const roleSets: Record<string, Array<{ name: string; icon: string }>> = {
+    'valorant': [
+      { name: 'Duelist', icon: '⚔️' }, { name: 'Controller', icon: '🌫️' },
+      { name: 'Initiator', icon: '🎯' }, { name: 'Sentinel', icon: '🛡️' }
+    ],
+    'mobile-legends': [
+      { name: 'Tank', icon: '🛡️' }, { name: 'Fighter', icon: '⚔️' },
+      { name: 'Assassin', icon: '🗡️' }, { name: 'Marksman', icon: '🏹' },
+      { name: 'Mage', icon: '🔮' }, { name: 'Support', icon: '💚' }
+    ],
+    'pubg-mobile': [
+      { name: 'Sniper', icon: '🎯' }, { name: 'Rusher', icon: '⚡' },
+      { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }
+    ],
+    'genshin-impact': [
+      { name: 'DPS', icon: '⚔️' }, { name: 'Sub-DPS', icon: '🗡️' },
+      { name: 'Support', icon: '💚' }, { name: 'Healer', icon: '❤️' }
+    ],
+    'free-fire': [
+      { name: 'Rusher', icon: '⚡' }, { name: 'Sniper', icon: '🎯' },
+      { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }
+    ],
+    'apex-legends': [
+      { name: 'Assault', icon: '⚔️' }, { name: 'Recon', icon: '🔍' },
+      { name: 'Support', icon: '💚' }, { name: 'Defense', icon: '🛡️' }
+    ],
+  };
+
+  const transaction = db.transaction(() => {
+    for (const game of games) {
+      insertGame.run(game.id, game.name, game.slug, game.icon, game.description);
+
+      const ranks = rankSets[game.slug] || [];
+      ranks.forEach((rank, i) => {
+        insertRank.run(uuidv4(), game.id, rank.name, i + 1, rank.icon);
+      });
+
+      const modes = modeSets[game.slug] || [];
+      modes.forEach(mode => {
+        insertMode.run(uuidv4(), game.id, mode);
+      });
+
+      const roles = roleSets[game.slug] || [];
+      roles.forEach(role => {
+        insertRole.run(uuidv4(), game.id, role.name, role.icon);
+      });
+    }
+
+    // Create admin user
+    const adminId = uuidv4();
+    const adminHash = bcrypt.hashSync('admin123', 10);
+    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(adminId, 'admin', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 'ADMIN-' + adminId.slice(0, 8));
+
+    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
+      .run(uuidv4(), adminId, 10000, 10000);
+
+    // Create demo user
+    const demoId = uuidv4();
+    const demoHash = bcrypt.hashSync('demo123', 10);
+    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(demoId, 'ProGamer', 'demo@arcadia.gg', demoHash, 'user', 1, 1, 2500, 'DEMO-' + demoId.slice(0, 8));
+
+    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
+      .run(uuidv4(), demoId, 2500, 5000);
+
+    // Assign demo user some games
+    const allGames = db.prepare('SELECT id FROM games').all() as Array<{ id: string }>;
+    const allRanks = db.prepare('SELECT id, game_id FROM ranks WHERE tier >= 3 AND tier <= 5').all() as Array<{ id: string; game_id: string }>;
+
+    for (let i = 0; i < Math.min(3, allGames.length); i++) {
+      const gid = allGames[i].id;
+      const rid = allRanks.find(r => r.game_id === gid)?.id || null;
+      db.prepare('INSERT INTO user_games (id, user_id, game_id, rank_id, is_favorite) VALUES (?, ?, ?, ?, ?)')
+        .run(uuidv4(), demoId, gid, rid, i === 0 ? 1 : 0);
+    }
+
+    // Create sample reward items
+    const rewards = [
+      { name: 'Diamond Top-Up 100', desc: 'Voucher top up 100 diamonds untuk game favoritmu', cat: 'voucher', cost: 500, stock: 50 },
+      { name: 'Gaming Cafe 2 Hours', desc: 'Voucher bermain 2 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 300, stock: 100 },
+      { name: 'Arcadia T-Shirt', desc: 'Kaos eksklusif GAMEHUB ARCADIA limited edition', cat: 'merchandise', cost: 2000, stock: 20 },
+      { name: 'Tournament VIP Pass', desc: 'Akses premium untuk 1 tournament pilihan', cat: 'tournament_entry', cost: 1000, stock: 30 },
+      { name: 'Steam Wallet $5', desc: 'Steam wallet code senilai $5 USD', cat: 'voucher', cost: 1500, stock: 25 },
+      { name: 'Gaming Mousepad XL', desc: 'Mousepad gaming XL dengan desain ARCADIA', cat: 'merchandise', cost: 1200, stock: 15 },
     ];
 
-    const insertGame = db.prepare('INSERT INTO games (id, name, slug, icon, description) VALUES (?, ?, ?, ?, ?)');
-    const insertRank = db.prepare('INSERT INTO ranks (id, game_id, name, tier, icon) VALUES (?, ?, ?, ?, ?)');
-    const insertMode = db.prepare('INSERT INTO game_modes (id, game_id, name) VALUES (?, ?, ?)');
-    const insertRole = db.prepare('INSERT INTO game_roles (id, game_id, name, icon) VALUES (?, ?, ?, ?)');
+    for (const r of rewards) {
+      db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(uuidv4(), r.name, r.desc, r.cat, r.cost, r.stock);
+    }
 
-    const rankSets: Record<string, Array<{ name: string; icon: string }>> = {
-        'valorant': [
-            { name: 'Iron', icon: '🟤' }, { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' },
-            { name: 'Gold', icon: '🥇' }, { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' },
-            { name: 'Ascendant', icon: '🌟' }, { name: 'Immortal', icon: '👑' }, { name: 'Radiant', icon: '⭐' }
-        ],
-        'mobile-legends': [
-            { name: 'Warrior', icon: '⚔️' }, { name: 'Elite', icon: '🛡️' }, { name: 'Master', icon: '🏅' },
-            { name: 'Grandmaster', icon: '🎖️' }, { name: 'Epic', icon: '💜' }, { name: 'Legend', icon: '🏆' },
-            { name: 'Mythic', icon: '👑' }, { name: 'Mythical Glory', icon: '⭐' }
-        ],
-        'pubg-mobile': [
-            { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
-            { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Crown', icon: '👑' },
-            { name: 'Ace', icon: '🌟' }, { name: 'Conqueror', icon: '⭐' }
-        ],
-        'genshin-impact': [
-            { name: 'AR 1-15', icon: '🌱' }, { name: 'AR 16-25', icon: '🌿' }, { name: 'AR 26-35', icon: '🌳' },
-            { name: 'AR 36-45', icon: '🏔️' }, { name: 'AR 46-55', icon: '⛰️' }, { name: 'AR 56+', icon: '🏯' }
-        ],
-        'free-fire': [
-            { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
-            { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Heroic', icon: '👑' },
-            { name: 'Grandmaster', icon: '⭐' }
-        ],
-        'apex-legends': [
-            { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
-            { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Master', icon: '👑' },
-            { name: 'Predator', icon: '⭐' }
-        ],
-    };
+    // Create sample parties
+    const partyGames = allGames.slice(0, 3);
+    const sampleParties = [
+      { title: 'Push Rank Bareng Yuk!', desc: 'Butuh teman push rank, minimal Gold. Santai tapi serius.', maxP: 5, region: 'Jakarta' },
+      { title: 'Chill Gaming Night', desc: 'Main santai malam ini, welcome semua rank.', maxP: 4, region: 'Bandung' },
+      { title: 'Scrim Team Kompetitif', desc: 'Persiapan tournament, butuh player serius.', maxP: 5, region: 'Surabaya' },
+    ];
 
-    const modeSets: Record<string, string[]> = {
-        'valorant': ['Competitive', 'Unrated', 'Spike Rush', 'Deathmatch'],
-        'mobile-legends': ['Ranked', 'Classic', 'Brawl', 'Custom'],
-        'pubg-mobile': ['Classic', 'Ranked', 'Arena', 'Payload'],
-        'genshin-impact': ['Co-op Domain', 'Spiral Abyss', 'Open World'],
-        'free-fire': ['Battle Royale', 'Clash Squad', 'Ranked'],
-        'apex-legends': ['Battle Royale', 'Ranked', 'Arenas', 'Control'],
-    };
-
-    const roleSets: Record<string, Array<{ name: string; icon: string }>> = {
-        'valorant': [
-            { name: 'Duelist', icon: '⚔️' }, { name: 'Controller', icon: '🌫️' },
-            { name: 'Initiator', icon: '🎯' }, { name: 'Sentinel', icon: '🛡️' }
-        ],
-        'mobile-legends': [
-            { name: 'Tank', icon: '🛡️' }, { name: 'Fighter', icon: '⚔️' },
-            { name: 'Assassin', icon: '🗡️' }, { name: 'Marksman', icon: '🏹' },
-            { name: 'Mage', icon: '🔮' }, { name: 'Support', icon: '💚' }
-        ],
-        'pubg-mobile': [
-            { name: 'Sniper', icon: '🎯' }, { name: 'Rusher', icon: '⚡' },
-            { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }
-        ],
-        'genshin-impact': [
-            { name: 'DPS', icon: '⚔️' }, { name: 'Sub-DPS', icon: '🗡️' },
-            { name: 'Support', icon: '💚' }, { name: 'Healer', icon: '❤️' }
-        ],
-        'free-fire': [
-            { name: 'Rusher', icon: '⚡' }, { name: 'Sniper', icon: '🎯' },
-            { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }
-        ],
-        'apex-legends': [
-            { name: 'Assault', icon: '⚔️' }, { name: 'Recon', icon: '🔍' },
-            { name: 'Support', icon: '💚' }, { name: 'Defense', icon: '🛡️' }
-        ],
-    };
-
-    const transaction = db.transaction(() => {
-        for (const game of games) {
-            insertGame.run(game.id, game.name, game.slug, game.icon, game.description);
-
-            const ranks = rankSets[game.slug] || [];
-            ranks.forEach((rank, i) => {
-                insertRank.run(uuidv4(), game.id, rank.name, i + 1, rank.icon);
-            });
-
-            const modes = modeSets[game.slug] || [];
-            modes.forEach(mode => {
-                insertMode.run(uuidv4(), game.id, mode);
-            });
-
-            const roles = roleSets[game.slug] || [];
-            roles.forEach(role => {
-                insertRole.run(uuidv4(), game.id, role.name, role.icon);
-            });
-        }
-
-        // Create admin user
-        const adminId = uuidv4();
-        const adminHash = bcrypt.hashSync('admin123', 10);
-        db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-            .run(adminId, 'admin', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 'ADMIN-' + adminId.slice(0, 8));
-
-        db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-            .run(uuidv4(), adminId, 10000, 10000);
-
-        // Create demo user
-        const demoId = uuidv4();
-        const demoHash = bcrypt.hashSync('demo123', 10);
-        db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-            .run(demoId, 'ProGamer', 'demo@arcadia.gg', demoHash, 'user', 1, 1, 2500, 'DEMO-' + demoId.slice(0, 8));
-
-        db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-            .run(uuidv4(), demoId, 2500, 5000);
-
-        // Assign demo user some games
-        const allGames = db.prepare('SELECT id FROM games').all() as Array<{ id: string }>;
-        const allRanks = db.prepare('SELECT id, game_id FROM ranks WHERE tier >= 3 AND tier <= 5').all() as Array<{ id: string; game_id: string }>;
-
-        for (let i = 0; i < Math.min(3, allGames.length); i++) {
-            const gid = allGames[i].id;
-            const rid = allRanks.find(r => r.game_id === gid)?.id || null;
-            db.prepare('INSERT INTO user_games (id, user_id, game_id, rank_id, is_favorite) VALUES (?, ?, ?, ?, ?)')
-                .run(uuidv4(), demoId, gid, rid, i === 0 ? 1 : 0);
-        }
-
-        // Create sample reward items
-        const rewards = [
-            { name: 'Diamond Top-Up 100', desc: 'Voucher top up 100 diamonds untuk game favoritmu', cat: 'voucher', cost: 500, stock: 50 },
-            { name: 'Gaming Cafe 2 Hours', desc: 'Voucher bermain 2 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 300, stock: 100 },
-            { name: 'Arcadia T-Shirt', desc: 'Kaos eksklusif GAMEHUB ARCADIA limited edition', cat: 'merchandise', cost: 2000, stock: 20 },
-            { name: 'Tournament VIP Pass', desc: 'Akses premium untuk 1 tournament pilihan', cat: 'tournament_entry', cost: 1000, stock: 30 },
-            { name: 'Steam Wallet $5', desc: 'Steam wallet code senilai $5 USD', cat: 'voucher', cost: 1500, stock: 25 },
-            { name: 'Gaming Mousepad XL', desc: 'Mousepad gaming XL dengan desain ARCADIA', cat: 'merchandise', cost: 1200, stock: 15 },
-        ];
-
-        for (const r of rewards) {
-            db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)')
-                .run(uuidv4(), r.name, r.desc, r.cat, r.cost, r.stock);
-        }
-
-        // Create sample parties
-        const partyGames = allGames.slice(0, 3);
-        const sampleParties = [
-            { title: 'Push Rank Bareng Yuk!', desc: 'Butuh teman push rank, minimal Gold. Santai tapi serius.', maxP: 5, region: 'Jakarta' },
-            { title: 'Chill Gaming Night', desc: 'Main santai malam ini, welcome semua rank.', maxP: 4, region: 'Bandung' },
-            { title: 'Scrim Team Kompetitif', desc: 'Persiapan tournament, butuh player serius.', maxP: 5, region: 'Surabaya' },
-        ];
-
-        sampleParties.forEach((p, idx) => {
-            const partyId = uuidv4();
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-            const gid = partyGames[idx % partyGames.length].id;
-            db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                .run(partyId, gid, demoId, p.title, p.desc, p.maxP, 1, 'open', p.region, expiresAt);
-            db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
-                .run(uuidv4(), partyId, demoId, 'leader');
-        });
-
-        // Create sample tournaments
-        const sampleTournaments = [
-            { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi GAMEHUB ARCADIA season pertama!', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
-            { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend.', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
-            { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League nasional.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points + Voucher', fee: 500, status: 'ongoing' },
-        ];
-
-        sampleTournaments.forEach((t, idx) => {
-            const gid = partyGames[idx % partyGames.length].id;
-            const regStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-            const regEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-            const startDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-            db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                .run(uuidv4(), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
-        });
+    sampleParties.forEach((p, idx) => {
+      const partyId = uuidv4();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const gid = partyGames[idx % partyGames.length].id;
+      db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(partyId, gid, demoId, p.title, p.desc, p.maxP, 1, 'open', p.region, expiresAt);
+      db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
+        .run(uuidv4(), partyId, demoId, 'leader');
     });
 
-    transaction();
+    // Create sample tournaments
+    const sampleTournaments = [
+      { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi GAMEHUB ARCADIA season pertama!', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
+      { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend.', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
+      { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League nasional.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points + Voucher', fee: 500, status: 'ongoing' },
+    ];
+
+    sampleTournaments.forEach((t, idx) => {
+      const gid = partyGames[idx % partyGames.length].id;
+      const regStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      const regEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const startDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+      db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(uuidv4(), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
+    });
+  });
+
+  transaction();
 }

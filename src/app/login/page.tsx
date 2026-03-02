@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -13,6 +13,20 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
+
+    // Load saved credentials on mount
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('arcadia_remember');
+            if (saved) {
+                const { email: savedEmail, password: savedPassword } = JSON.parse(saved);
+                setEmail(savedEmail || '');
+                setPassword(savedPassword || '');
+                setRememberMe(true);
+            }
+        } catch { /* ignore */ }
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -23,6 +37,12 @@ export default function LoginPage() {
         setLoading(false);
 
         if (result.success) {
+            // Save or clear credentials based on remember me
+            if (rememberMe) {
+                localStorage.setItem('arcadia_remember', JSON.stringify({ email, password }));
+            } else {
+                localStorage.removeItem('arcadia_remember');
+            }
             router.push('/dashboard');
         } else {
             setError(result.error || 'Login gagal');
@@ -61,11 +81,28 @@ export default function LoginPage() {
                             <label className="block text-sm font-medium text-text-muted mb-2">Password</label>
                             <div className="relative">
                                 <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="input !pr-12" required />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text">
+                                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition-colors p-1">
                                     {showPassword ? '🙈' : '👁️'}
                                 </button>
                             </div>
                         </div>
+
+                        {/* Remember Me */}
+                        <label className="flex items-center gap-2.5 cursor-pointer group">
+                            <div className="relative">
+                                <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)}
+                                    className="sr-only peer" />
+                                <div className="w-5 h-5 rounded-md border-2 border-border bg-surface peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center">
+                                    {rememberMe && (
+                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </div>
+                            </div>
+                            <span className="text-sm text-text-muted group-hover:text-text transition-colors">Ingat saya</span>
+                        </label>
 
                         <button type="submit" disabled={loading} className="btn-primary w-full !py-3">
                             {loading ? <span className="animate-spin">⏳</span> : '🚀'} {loading ? 'Loading...' : 'Login'}

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import GameIcon from '@/components/GameIcon';
 
 interface GameData {
     id: string; name: string; icon: string;
@@ -80,7 +81,9 @@ export default function OnboardingPage() {
                                 onClick={() => toggleGame(game.id)}
                                 className={`card cursor-pointer text-center !p-5 transition-all ${isSelected ? 'border-primary glow-primary' : ''
                                     }`}>
-                                <div className="text-4xl mb-2">{game.icon}</div>
+                                <div className="flex justify-center mb-3">
+                                    <GameIcon icon={game.icon} name={game.name} size="xl" />
+                                </div>
                                 <p className="font-semibold text-sm">{game.name}</p>
                                 {isSelected && <div className="mt-2 text-primary text-sm">✓ Dipilih</div>}
                             </motion.div>
@@ -96,7 +99,10 @@ export default function OnboardingPage() {
                             if (!game) return null;
                             return (
                                 <motion.div key={gameId} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="card">
-                                    <h3 className="font-bold mb-3">{game.icon} {game.name}</h3>
+                                    <h3 className="font-bold mb-3 flex items-center gap-2">
+                                        <GameIcon icon={game.icon} name={game.name} size="sm" />
+                                        {game.name}
+                                    </h3>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="text-sm text-text-muted block mb-1">Rank</label>

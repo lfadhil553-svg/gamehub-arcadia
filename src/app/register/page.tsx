@@ -14,6 +14,8 @@ export default function RegisterPage() {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,6 +26,8 @@ export default function RegisterPage() {
         setLoading(false);
 
         if (result.success) {
+            // Save credentials for auto-fill on login page
+            localStorage.setItem('arcadia_remember', JSON.stringify({ email, password }));
             router.push('/onboarding');
         } else {
             setError(result.error || 'Registrasi gagal');
@@ -79,7 +83,13 @@ export default function RegisterPage() {
 
                         <div>
                             <label className="block text-sm font-medium text-text-muted mb-2">Password</label>
-                            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 karakter" className="input" required />
+                            <div className="relative">
+                                <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Min. 8 karakter" className="input !pr-12" required />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition-colors p-1">
+                                    {showPassword ? '🙈' : '👁️'}
+                                </button>
+                            </div>
                             {password && (
                                 <div className="mt-2">
                                     <div className="flex gap-1 mb-1">
@@ -94,7 +104,13 @@ export default function RegisterPage() {
 
                         <div>
                             <label className="block text-sm font-medium text-text-muted mb-2">Konfirmasi Password</label>
-                            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Ulangi password" className="input" required />
+                            <div className="relative">
+                                <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Ulangi password" className="input !pr-12" required />
+                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text transition-colors p-1">
+                                    {showConfirmPassword ? '🙈' : '👁️'}
+                                </button>
+                            </div>
                             {confirmPassword && password !== confirmPassword && (
                                 <p className="text-xs text-danger mt-1">Password tidak cocok</p>
                             )}
