@@ -116,12 +116,6 @@ export default function LoginPage() {
                         </p>
                     </div>
 
-                    <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/10 text-xs text-text-muted">
-                        <p className="font-medium text-text mb-1">🎮 Demo Account:</p>
-                        <p>Email: <span className="text-primary">demo@arcadia.gg</span></p>
-                        <p>Password: <span className="text-primary">demo123</span></p>
-                        <p className="mt-1">Admin: <span className="text-primary">admin@arcadia.gg</span> / <span className="text-primary">admin123</span></p>
-                    </div>
                 </div>
             </motion.div>
         </div>
