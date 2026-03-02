@@ -55,7 +55,7 @@ export default function RegisterPage() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md relative z-10">
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center gap-2 mb-6">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold glow-primary">A</div>
+                        <img src="/logo.jpeg" alt="GAMEHUB ARCADIA" className="w-12 h-12 rounded-xl object-cover" />
                     </Link>
                     <h1 className="text-3xl font-bold mb-2">Buat Akun <span className="gradient-text">ARCADIA</span></h1>
                     <p className="text-text-muted">Daftar gratis dan dapatkan 100 Arcadia Points!</p>

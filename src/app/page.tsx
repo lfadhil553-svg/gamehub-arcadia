@@ -14,7 +14,7 @@ export default function HomePage() {
 
         <nav className="relative z-10 flex items-center justify-between px-6 lg:px-16 py-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold glow-primary">A</div>
+            <img src="/logo.jpeg" alt="GAMEHUB ARCADIA" className="w-12 h-12 rounded-xl object-cover" />
             <div>
               <h1 className="text-xl font-bold gradient-text">GAMEHUB ARCADIA</h1>
               <p className="text-xs text-text-muted">Platform Ekosistem Gamer</p>
