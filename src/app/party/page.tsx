@@ -85,7 +85,7 @@ export default function PartyPage() {
                                     <label className="text-sm text-text-muted block mb-1">Game *</label>
                                     <select className="select" value={createData.game_id} onChange={e => setCreateData(p => ({ ...p, game_id: e.target.value }))}>
                                         <option value="">Pilih Game</option>
-                                        {games.map(g => <option key={g.id} value={g.id}>{g.icon} {g.name}</option>)}
+                                        {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -119,7 +119,7 @@ export default function PartyPage() {
                 <div className="flex flex-wrap gap-3">
                     <select className="select !w-auto min-w-[160px]" value={filter.game_id} onChange={e => setFilter(p => ({ ...p, game_id: e.target.value }))}>
                         <option value="">Semua Game</option>
-                        {games.map(g => <option key={g.id} value={g.id}>{g.icon} {g.name}</option>)}
+                        {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                     <input className="input !w-auto min-w-[160px]" placeholder="🔍 Filter region..." value={filter.region} onChange={e => setFilter(p => ({ ...p, region: e.target.value }))} />
                 </div>

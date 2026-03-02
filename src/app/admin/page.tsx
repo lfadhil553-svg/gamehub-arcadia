@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import GameIcon from '@/components/GameIcon';
 import { motion } from 'framer-motion';
 
 interface AdminData {
@@ -130,7 +131,7 @@ export default function AdminPage() {
                             {data.games.map(game => (
                                 <div key={game.id} className="card">
                                     <div className="flex items-center gap-3 mb-2">
-                                        <span className="text-3xl">{game.icon}</span>
+                                        <GameIcon icon={game.icon} name={game.name} size="lg" />
                                         <div>
                                             <p className="font-bold">{game.name}</p>
                                             <p className="text-xs text-text-muted">{game.slug}</p>

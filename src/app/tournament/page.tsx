@@ -61,7 +61,7 @@ export default function TournamentPage() {
                     {games.map(g => (
                         <button key={g.id} onClick={() => setGameFilter(g.id)}
                             className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${gameFilter === g.id ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
-                            {g.icon} {g.name}
+                            <GameIcon icon={g.icon} name={g.name} size="sm" /> {g.name}
                         </button>
                     ))}
                 </div>

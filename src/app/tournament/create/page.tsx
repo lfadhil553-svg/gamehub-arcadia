@@ -49,7 +49,7 @@ export default function CreateTournamentPage() {
                             <label className="text-sm text-text-muted block mb-1">Game *</label>
                             <select className="select" value={form.game_id} onChange={e => setForm(p => ({ ...p, game_id: e.target.value }))} required>
                                 <option value="">Pilih Game</option>
-                                {games.map(g => <option key={g.id} value={g.id}>{g.icon} {g.name}</option>)}
+                                {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                             </select>
                         </div>
                         <div>
