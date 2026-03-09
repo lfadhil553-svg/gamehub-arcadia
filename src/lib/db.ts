@@ -1,9 +1,12 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
-const DB_PATH = path.join(process.cwd(), 'gamehub.db');
+// Use /data/ for Railway persistent volume, fallback to cwd for local dev
+const DATA_DIR = process.env.NODE_ENV === 'production' && fs.existsSync('/data') ? '/data' : process.cwd();
+const DB_PATH = path.join(DATA_DIR, 'gamehub.db');
 let db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
@@ -25,7 +28,7 @@ function initializeDatabase(db: Database.Database) {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       avatar TEXT DEFAULT '/avatars/default.png',
-      role TEXT DEFAULT 'user' CHECK(role IN ('user','organizer','admin')),
+      role TEXT DEFAULT 'user' CHECK(role IN ('user','organizer','admin','superadmin')),
       is_verified INTEGER DEFAULT 0,
       is_banned INTEGER DEFAULT 0,
       login_attempts INTEGER DEFAULT 0,
@@ -294,6 +297,19 @@ function initializeDatabase(db: Database.Database) {
       UNIQUE(user_id, login_date)
     );
 
+    -- Friendships
+    CREATE TABLE IF NOT EXISTS friendships (
+      id TEXT PRIMARY KEY,
+      requester_id TEXT NOT NULL,
+      addressee_id TEXT NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending','accepted','rejected')),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (requester_id) REFERENCES users(id),
+      FOREIGN KEY (addressee_id) REFERENCES users(id),
+      UNIQUE(requester_id, addressee_id)
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_parties_game ON parties(game_id);
     CREATE INDEX IF NOT EXISTS idx_parties_status ON parties(status);
@@ -305,6 +321,8 @@ function initializeDatabase(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_user_games_user ON user_games(user_id);
     CREATE INDEX IF NOT EXISTS idx_party_members_party ON party_members(party_id);
     CREATE INDEX IF NOT EXISTS idx_party_chat_party ON party_chat(party_id);
+    CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id);
+    CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
   `);
 
   // Seed data if empty
@@ -418,12 +436,19 @@ function seedDatabase(db: Database.Database) {
       });
     }
 
+    // Create superadmin (Pro gamer) - can promote/demote admins
+    const superAdminId = uuidv4();
+    const superAdminHash = bcrypt.hashSync('progamer123', 10);
+    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(superAdminId, 'Pro gamer', 'progamer@arcadia.gg', superAdminHash, 'superadmin', 1, 1, 50000, 'SUPER-' + superAdminId.slice(0, 8));
+    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
+      .run(uuidv4(), superAdminId, 50000, 50000);
+
     // Create admin user
     const adminId = uuidv4();
     const adminHash = bcrypt.hashSync('admin123', 10);
     db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(adminId, 'admin', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 'ADMIN-' + adminId.slice(0, 8));
-
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
       .run(uuidv4(), adminId, 10000, 10000);
 
@@ -431,10 +456,31 @@ function seedDatabase(db: Database.Database) {
     const demoId = uuidv4();
     const demoHash = bcrypt.hashSync('demo123', 10);
     db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(demoId, 'ProGamer', 'demo@arcadia.gg', demoHash, 'user', 1, 1, 2500, 'DEMO-' + demoId.slice(0, 8));
-
+      .run(demoId, 'GamerPro', 'demo@arcadia.gg', demoHash, 'user', 1, 1, 2500, 'DEMO-' + demoId.slice(0, 8));
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
       .run(uuidv4(), demoId, 2500, 5000);
+
+    // Create sample leaderboard users
+    const sampleUsers = [
+      { username: 'ShadowKnight', points: 8500 },
+      { username: 'NeonBlade', points: 7200 },
+      { username: 'PhantomX', points: 6800 },
+      { username: 'StarFire', points: 5900 },
+      { username: 'CyberWolf', points: 5100 },
+      { username: 'ThunderGod', points: 4500 },
+      { username: 'AceHunter', points: 3800 },
+      { username: 'BlazeMaster', points: 3200 },
+      { username: 'IronClad', points: 2800 },
+      { username: 'PixelNinja', points: 2100 },
+    ];
+    const sampleHash = bcrypt.hashSync('gamer123', 10);
+    for (const su of sampleUsers) {
+      const suId = uuidv4();
+      db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, su.username.toUpperCase().slice(0, 4) + '-' + suId.slice(0, 8));
+      db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
+        .run(uuidv4(), suId, su.points, su.points * 2);
+    }
 
     // Assign demo user some games
     const allGames = db.prepare('SELECT id FROM games').all() as Array<{ id: string }>;

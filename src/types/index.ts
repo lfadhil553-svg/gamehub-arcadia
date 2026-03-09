@@ -7,7 +7,7 @@ export interface User {
     email: string;
     password_hash: string;
     avatar: string;
-    role: 'user' | 'organizer' | 'admin';
+    role: 'user' | 'organizer' | 'admin' | 'superadmin';
     is_verified: boolean;
     is_banned: boolean;
     login_attempts: number;

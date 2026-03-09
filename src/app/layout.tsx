@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProvider } from "@/lib/context";
+import { LanguageProvider } from "@/lib/i18n";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -17,8 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="id" className={inter.variable}>
       <body className="bg-grid">
         <AppProvider>
-          <ToastContainer />
-          {children}
+          <LanguageProvider>
+            <ToastContainer />
+            {children}
+          </LanguageProvider>
         </AppProvider>
       </body>
     </html>

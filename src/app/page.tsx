@@ -30,7 +30,7 @@ export default function HomePage() {
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium mb-8">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Platform Gaming #1 Indonesia
+              Platform Komunitas Gamer · Gaming Social Hub
             </div>
             <h2 className="text-4xl lg:text-7xl font-extrabold mb-6 leading-tight">
               Level Up Your<br />

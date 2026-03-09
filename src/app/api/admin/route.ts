@@ -5,7 +5,7 @@ import { getCurrentUser } from '@/lib/auth';
 export async function GET() {
     try {
         const user = await getCurrentUser();
-        if (!user || user.role !== 'admin') {
+        if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
             return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
         }
 
@@ -54,7 +54,7 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const user = await getCurrentUser();
-        if (!user || user.role !== 'admin') {
+        if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
             return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
         }
 
@@ -76,6 +76,26 @@ export async function POST(req: Request) {
                     db.prepare('UPDATE games SET name = ?, is_active = ? WHERE id = ?').run(data.name, data.is_active ? 1 : 0, target_id);
                 }
                 return NextResponse.json({ success: true, message: 'Game berhasil diperbarui' });
+            case 'promote_admin': {
+                if (user.role !== 'superadmin') {
+                    return NextResponse.json({ success: false, error: 'Hanya superadmin yang bisa promote admin' }, { status: 403 });
+                }
+                const target = db.prepare('SELECT role FROM users WHERE id = ?').get(target_id) as { role: string } | undefined;
+                if (!target) return NextResponse.json({ success: false, error: 'User tidak ditemukan' }, { status: 404 });
+                if (target.role === 'admin' || target.role === 'superadmin') return NextResponse.json({ success: false, error: 'User sudah admin' }, { status: 400 });
+                db.prepare('UPDATE users SET role = ? WHERE id = ?').run('admin', target_id);
+                return NextResponse.json({ success: true, message: 'User berhasil dipromote jadi Admin' });
+            }
+            case 'demote_admin': {
+                if (user.role !== 'superadmin') {
+                    return NextResponse.json({ success: false, error: 'Hanya superadmin yang bisa demote admin' }, { status: 403 });
+                }
+                const target = db.prepare('SELECT role FROM users WHERE id = ?').get(target_id) as { role: string } | undefined;
+                if (!target) return NextResponse.json({ success: false, error: 'User tidak ditemukan' }, { status: 404 });
+                if (target.role === 'superadmin') return NextResponse.json({ success: false, error: 'Tidak bisa demote superadmin' }, { status: 400 });
+                db.prepare('UPDATE users SET role = ? WHERE id = ?').run('user', target_id);
+                return NextResponse.json({ success: true, message: 'Admin berhasil didemote jadi User' });
+            }
             default:
                 return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
         }

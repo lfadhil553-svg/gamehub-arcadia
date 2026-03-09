@@ -99,7 +99,7 @@ export default function PartyPage() {
                                 <div>
                                     <label className="text-sm text-text-muted block mb-1">Max Player</label>
                                     <select className="select" value={createData.max_players} onChange={e => setCreateData(p => ({ ...p, max_players: parseInt(e.target.value) }))}>
-                                        {[2, 3, 4, 5, 6, 8, 10].map(n => <option key={n} value={n}>{n} player</option>)}
+                                        {[2, 3, 4, 5, 6, 8, 10, 15, 20, 25, 50, 100].map(n => <option key={n} value={n}>{n} player</option>)}
                                     </select>
                                 </div>
                                 <div className="md:col-span-2">

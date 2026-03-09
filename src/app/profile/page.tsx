@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
 import { motion } from 'framer-motion';
+import { useLanguage, languageNames, Language } from '@/lib/i18n';
 
 interface ProfileData {
     user: { id: string; username: string; email: string; avatar: string; role: string; arcadia_points: number; reputation_score: number; referral_code: string; created_at: string };
@@ -15,8 +16,10 @@ interface ProfileData {
 export default function ProfilePage() {
     const { user, loading: authLoading, logout } = useApp();
     const router = useRouter();
+    const { language, setLanguage, t } = useLanguage();
     const [data, setData] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showLangPicker, setShowLangPicker] = useState(false);
 
     useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
     useEffect(() => {
@@ -43,11 +46,13 @@ export default function ProfilePage() {
                         <h1 className="text-2xl font-bold mb-1">{data.user.username}</h1>
                         <p className="text-text-muted text-sm mb-2">{data.user.email}</p>
                         <div className="flex items-center justify-center gap-3 mb-4">
-                            <span className="badge badge-primary">{data.user.role}</span>
-                            <span className="text-sm text-text-muted">Bergabung {new Date(data.user.created_at).toLocaleDateString('id')}</span>
+                            <span className={`badge ${data.user.role === 'superadmin' ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black' : 'badge-primary'}`}>
+                                {data.user.role === 'superadmin' ? '👑 Super Admin' : data.user.role}
+                            </span>
+                            <span className="text-sm text-text-muted">{t('profile.joined')} {new Date(data.user.created_at).toLocaleDateString('id')}</span>
                         </div>
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-light border border-border text-sm">
-                            <span>🔗 Referral:</span>
+                            <span>{t('profile.referral')}</span>
                             <span className="font-mono font-bold text-primary">{data.user.referral_code}</span>
                         </div>
                     </motion.div>
@@ -55,10 +60,10 @@ export default function ProfilePage() {
                     {/* Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            { label: 'Points', value: data.user.arcadia_points.toLocaleString(), icon: '⭐' },
-                            { label: 'Reputation', value: data.stats.avg_rating.toFixed(1), icon: '💎' },
-                            { label: 'Party Joined', value: data.stats.parties_joined, icon: '🎮' },
-                            { label: 'Win Rate', value: `${data.stats.win_rate}%`, icon: '🏆' },
+                            { label: t('profile.points'), value: data.user.arcadia_points.toLocaleString(), icon: '⭐' },
+                            { label: t('profile.reputation'), value: data.stats.avg_rating.toFixed(1), icon: '💎' },
+                            { label: t('profile.party_joined'), value: data.stats.parties_joined, icon: '🎮' },
+                            { label: t('profile.win_rate'), value: `${data.stats.win_rate}%`, icon: '🏆' },
                         ].map((s, i) => (
                             <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
                                 className="card !p-4 text-center">
@@ -71,7 +76,7 @@ export default function ProfilePage() {
 
                     {/* Games */}
                     <div className="card">
-                        <h3 className="font-bold mb-4">🎮 Game Saya</h3>
+                        <h3 className="font-bold mb-4">{t('profile.my_games')}</h3>
                         {data.games.length > 0 ? (
                             <div className="space-y-3">
                                 {data.games.map((game, i) => (
@@ -87,28 +92,54 @@ export default function ProfilePage() {
                                     </div>
                                 ))}
                             </div>
-                        ) : <p className="text-text-muted text-sm">Belum ada game. <button onClick={() => router.push('/onboarding')} className="text-primary hover:underline">Tambah game →</button></p>}
+                        ) : <p className="text-text-muted text-sm">{t('profile.no_games')} <button onClick={() => router.push('/onboarding')} className="text-primary hover:underline">{t('profile.add_game')}</button></p>}
                     </div>
 
-                    {/* More Stats */}
+                    {/* Stats Detail */}
                     <div className="card">
-                        <h3 className="font-bold mb-4">📊 Statistik Detail</h3>
+                        <h3 className="font-bold mb-4">{t('profile.stats')}</h3>
                         <div className="space-y-3 text-sm">
-                            <div className="flex justify-between"><span className="text-text-muted">Tournament Dimainkan</span><span>{data.stats.tournaments_played}</span></div>
-                            <div className="flex justify-between"><span className="text-text-muted">Tournament Menang</span><span className="text-success">{data.stats.tournaments_won}</span></div>
-                            <div className="flex justify-between"><span className="text-text-muted">Win Rate</span><span>{data.stats.win_rate}%</span></div>
-                            <div className="flex justify-between"><span className="text-text-muted">Total Rating</span><span>{data.stats.total_ratings} reviews</span></div>
-                            <div className="flex justify-between"><span className="text-text-muted">Rating Rata-rata</span><span>⭐ {data.stats.avg_rating}</span></div>
+                            <div className="flex justify-between"><span className="text-text-muted">{t('profile.tournaments_played')}</span><span>{data.stats.tournaments_played}</span></div>
+                            <div className="flex justify-between"><span className="text-text-muted">{t('profile.tournaments_won')}</span><span className="text-success">{data.stats.tournaments_won}</span></div>
+                            <div className="flex justify-between"><span className="text-text-muted">{t('profile.win_rate')}</span><span>{data.stats.win_rate}%</span></div>
+                            <div className="flex justify-between"><span className="text-text-muted">{t('profile.total_ratings')}</span><span>{data.stats.total_ratings} reviews</span></div>
+                            <div className="flex justify-between"><span className="text-text-muted">{t('profile.avg_rating')}</span><span>⭐ {data.stats.avg_rating}</span></div>
+                        </div>
+                    </div>
+
+                    {/* Language Switcher */}
+                    <div className="card">
+                        <h3 className="font-bold mb-4">{t('profile.settings')}</h3>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm">{t('profile.language')}</span>
+                            <div className="relative">
+                                <button onClick={() => setShowLangPicker(!showLangPicker)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-light border border-border text-sm hover:border-primary transition-colors">
+                                    {languageNames[language]}
+                                    <svg className={`w-4 h-4 transition-transform ${showLangPicker ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                                {showLangPicker && (
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden">
+                                        {(Object.keys(languageNames) as Language[]).map(lang => (
+                                            <button key={lang} onClick={() => { setLanguage(lang); setShowLangPicker(false); }}
+                                                className={`w-full text-left px-4 py-3 text-sm hover:bg-surface-light transition-colors flex items-center justify-between ${language === lang ? 'text-primary bg-primary/5' : 'text-text'}`}>
+                                                {languageNames[lang]}
+                                                {language === lang && <span>✓</span>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
                     {/* Actions */}
                     <div className="flex gap-3">
-                        <button onClick={() => router.push('/onboarding')} className="btn-secondary flex-1">🎮 Edit Game</button>
-                        <button onClick={() => { logout(); router.push('/'); }} className="btn-danger flex-1">🚪 Logout</button>
+                        <button onClick={() => router.push('/onboarding')} className="btn-secondary flex-1">{t('profile.edit_game')}</button>
+                        <button onClick={() => { logout(); router.push('/'); }} className="btn-danger flex-1">{t('profile.logout')}</button>
                     </div>
                 </div>
-            ) : <p className="text-text-muted">Gagal memuat profil</p>}
+            ) : <p className="text-text-muted">{t('common.error')}</p>}
         </AppLayout>
     );
 }

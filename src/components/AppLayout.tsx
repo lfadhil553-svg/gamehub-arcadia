@@ -9,6 +9,7 @@ const navItems = [
     { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
     { label: 'Party', href: '/party', icon: '🎮' },
     { label: 'Tournament', href: '/tournament', icon: '🏆' },
+    { label: 'Friends', href: '/friends', icon: '👥' },
     { label: 'Rewards', href: '/rewards', icon: '🎁' },
     { label: 'Profile', href: '/profile', icon: '👤' },
 ];
@@ -93,7 +94,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             </Link>
                         );
                     })}
-                    {user?.role === 'admin' && (
+                    {(user?.role === 'admin' || user?.role === 'superadmin') && (
                         <Link href="/admin"
                             className={`flex items-center gap-3 h-11 rounded-xl transition-all duration-200 group relative
                 ${collapsed ? 'justify-center px-0' : 'px-3'}

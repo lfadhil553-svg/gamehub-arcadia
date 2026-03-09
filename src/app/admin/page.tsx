@@ -22,7 +22,7 @@ export default function AdminPage() {
     const [tab, setTab] = useState<'overview' | 'users' | 'games' | 'tournaments' | 'rewards'>('overview');
 
     useEffect(() => {
-        if (!authLoading && (!user || user.role !== 'admin')) router.push('/dashboard');
+        if (!authLoading && (!user || (user.role !== 'admin' && user.role !== 'superadmin'))) router.push('/dashboard');
     }, [user, authLoading, router]);
 
     const fetchData = async () => {
@@ -32,7 +32,7 @@ export default function AdminPage() {
         setLoading(false);
     };
 
-    useEffect(() => { if (user?.role === 'admin') fetchData(); }, [user]);
+    useEffect(() => { if (user?.role === 'admin' || user?.role === 'superadmin') fetchData(); }, [user]);
 
     const adminAction = async (action: string, target_id: string, actionData?: Record<string, unknown>) => {
         const res = await fetch('/api/admin', {
@@ -112,11 +112,20 @@ export default function AdminPage() {
                                                     <span className={`badge ${u.is_banned ? 'badge-danger' : 'badge-success'}`}>{u.is_banned ? 'Banned' : 'Active'}</span>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    {u.is_banned ? (
-                                                        <button onClick={() => adminAction('unban_user', u.id)} className="text-xs text-success hover:underline">Unban</button>
-                                                    ) : (
-                                                        <button onClick={() => adminAction('ban_user', u.id)} className="text-xs text-danger hover:underline">Ban</button>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        {u.is_banned ? (
+                                                            <button onClick={() => adminAction('unban_user', u.id)} className="text-xs text-success hover:underline">Unban</button>
+                                                        ) : (
+                                                            <button onClick={() => adminAction('ban_user', u.id)} className="text-xs text-danger hover:underline">Ban</button>
+                                                        )}
+                                                        {user?.role === 'superadmin' && u.role !== 'superadmin' && (
+                                                            u.role === 'admin' ? (
+                                                                <button onClick={() => adminAction('demote_admin', u.id)} className="text-xs text-warning hover:underline">Demote</button>
+                                                            ) : (
+                                                                <button onClick={() => adminAction('promote_admin', u.id)} className="text-xs text-primary hover:underline">↑ Admin</button>
+                                                            )
+                                                        )}
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
