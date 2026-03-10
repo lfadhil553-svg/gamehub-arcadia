@@ -7,7 +7,7 @@ import { LanguageProvider } from "@/lib/i18n";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "GAMEHUB ARCADIA - Platform Ekosistem Gamer",
+  title: "ARCADIA - Gaming Social Hub",
   description: "Platform gaming multi-game terlengkap. Cari teman mabar, ikut tournament, kumpulkan points dan dapatkan reward menarik!",
   keywords: "gaming, esports, tournament, party finder, mabar, arcadia",
   icons: { icon: "/favicon.ico" },

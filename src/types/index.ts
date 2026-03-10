@@ -1,4 +1,4 @@
-// ==================== GAMEHUB ARCADIA - Type Definitions ====================
+// ==================== ARCADIA - Type Definitions ====================
 
 // Auth Types
 export interface User {

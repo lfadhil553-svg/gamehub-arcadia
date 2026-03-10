@@ -55,11 +55,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             >
                 <div className="flex items-center h-16 px-3 border-b border-border shrink-0">
                     <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <img src="/logo.jpeg" alt="GAMEHUB ARCADIA" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                        <img src="/logo.jpeg" alt="ARCADIA" className="w-10 h-10 rounded-xl object-cover shrink-0" />
                         {!collapsed && (
                             <div>
                                 <h1 className="text-base font-bold gradient-text whitespace-nowrap leading-tight">ARCADIA</h1>
-                                <p className="text-[10px] text-text-muted whitespace-nowrap">GAMEHUB</p>
+                                <p className="text-[10px] text-text-muted whitespace-nowrap">Gaming Social Hub</p>
                             </div>
                         )}
                     </Link>
@@ -148,10 +148,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <aside className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-surface border-r border-border z-50 flex flex-col transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="flex items-center justify-between h-16 px-4 border-b border-border shrink-0">
                     <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5">
-                        <img src="/logo.jpeg" alt="GAMEHUB ARCADIA" className="w-10 h-10 rounded-xl object-cover" />
+                        <img src="/logo.jpeg" alt="ARCADIA" className="w-10 h-10 rounded-xl object-cover" />
                         <div>
                             <h1 className="text-base font-bold gradient-text">ARCADIA</h1>
-                            <p className="text-[10px] text-text-muted">GAMEHUB</p>
+                            <p className="text-[10px] text-text-muted">Gaming Social Hub</p>
                         </div>
                     </Link>
                     <button onClick={() => setMobileOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-light">✕</button>

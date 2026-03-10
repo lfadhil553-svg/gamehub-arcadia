@@ -497,7 +497,7 @@ function seedDatabase(db: Database.Database) {
     const rewards = [
       { name: 'Diamond Top-Up 100', desc: 'Voucher top up 100 diamonds untuk game favoritmu', cat: 'voucher', cost: 500, stock: 50 },
       { name: 'Gaming Cafe 2 Hours', desc: 'Voucher bermain 2 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 300, stock: 100 },
-      { name: 'Arcadia T-Shirt', desc: 'Kaos eksklusif GAMEHUB ARCADIA limited edition', cat: 'merchandise', cost: 2000, stock: 20 },
+      { name: 'Arcadia T-Shirt', desc: 'Kaos eksklusif ARCADIA limited edition', cat: 'merchandise', cost: 2000, stock: 20 },
       { name: 'Tournament VIP Pass', desc: 'Akses premium untuk 1 tournament pilihan', cat: 'tournament_entry', cost: 1000, stock: 30 },
       { name: 'Steam Wallet $5', desc: 'Steam wallet code senilai $5 USD', cat: 'voucher', cost: 1500, stock: 25 },
       { name: 'Gaming Mousepad XL', desc: 'Mousepad gaming XL dengan desain ARCADIA', cat: 'merchandise', cost: 1200, stock: 15 },
@@ -528,7 +528,7 @@ function seedDatabase(db: Database.Database) {
 
     // Create sample tournaments
     const sampleTournaments = [
-      { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi GAMEHUB ARCADIA season pertama!', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
+      { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi ARCADIA season pertama!', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
       { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend.', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
       { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League nasional.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points + Voucher', fee: 500, status: 'ongoing' },
     ];

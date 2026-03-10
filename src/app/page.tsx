@@ -14,9 +14,9 @@ export default function HomePage() {
 
         <nav className="relative z-10 flex items-center justify-between px-6 lg:px-16 py-6">
           <div className="flex items-center gap-3">
-            <img src="/logo.jpeg" alt="GAMEHUB ARCADIA" className="w-12 h-12 rounded-xl object-cover" />
+            <img src="/logo.jpeg" alt="ARCADIA" className="w-12 h-12 rounded-xl object-cover" />
             <div>
-              <h1 className="text-xl font-bold gradient-text">GAMEHUB ARCADIA</h1>
+              <h1 className="text-xl font-bold gradient-text">ARCADIA</h1>
               <p className="text-xs text-text-muted">Platform Ekosistem Gamer</p>
             </div>
           </div>
@@ -106,14 +106,14 @@ export default function HomePage() {
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
           className="card !p-12 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
           <h3 className="text-3xl lg:text-4xl font-bold mb-4">Siap Level Up? 🎮</h3>
-          <p className="text-text-muted mb-8 max-w-lg mx-auto">Bergabung dengan ribuan gamer lainnya di GAMEHUB ARCADIA. Daftar gratis dan dapatkan 100 Arcadia Points!</p>
+          <p className="text-text-muted mb-8 max-w-lg mx-auto">Bergabung dengan ribuan gamer lainnya di ARCADIA. Daftar gratis dan dapatkan 100 Arcadia Points!</p>
           <Link href="/register" className="btn-primary text-lg !py-4 !px-10">Daftar Sekarang — Gratis!</Link>
         </motion.div>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-border py-8 px-6 text-center text-text-muted text-sm">
-        <p>© 2024 GAMEHUB ARCADIA. All rights reserved.</p>
+        <p>© 2024 ARCADIA. All rights reserved.</p>
       </footer>
     </div>
   );
