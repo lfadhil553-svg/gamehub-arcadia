@@ -3,12 +3,24 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import GameIcon from '@/components/GameIcon';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface PlayerGame {
+    game_name: string; game_icon: string; rank_name: string; rank_icon: string;
+    role_name: string; role_icon: string; is_favorite: number;
+}
+
+interface PlayerStats {
+    parties_joined: number; tournaments_played: number; tournaments_won: number;
+    win_rate: number; avg_rating: number; total_ratings: number;
+}
 
 interface FriendUser {
     id: string; username: string; avatar: string; role: string;
-    arcadia_points: number; reputation_score?: number; friendship_id: string;
+    arcadia_points: number; reputation_score?: number; friendship_id?: string;
     friends_since?: string; requested_at?: string; friendship_status?: string;
+    games?: PlayerGame[]; stats?: PlayerStats;
 }
 
 export default function FriendsPage() {
@@ -22,6 +34,7 @@ export default function FriendsPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
+    const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
 
     useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
 
@@ -43,6 +56,7 @@ export default function FriendsPage() {
     const searchPlayers = async () => {
         if (searchQuery.length < 2) { addToast('Minimal 2 karakter', 'error'); return; }
         setSearching(true);
+        setExpandedPlayer(null);
         const res = await fetch(`/api/players?search=${encodeURIComponent(searchQuery)}`);
         const data = await res.json();
         if (data.success) setSearchResults(data.data);
@@ -124,7 +138,7 @@ export default function FriendsPage() {
                                                 </div>
                                                 <p className="text-xs text-text-muted">⭐ {f.arcadia_points} pts</p>
                                             </div>
-                                            <button onClick={() => removeFriend(f.friendship_id)} className="text-xs text-danger hover:underline shrink-0">Hapus</button>
+                                            <button onClick={() => removeFriend(f.friendship_id!)} className="text-xs text-danger hover:underline shrink-0">Hapus</button>
                                         </motion.div>
                                     ))}
                                 </div>
@@ -142,7 +156,6 @@ export default function FriendsPage() {
                     {/* Pending Tab */}
                     {tab === 'pending' && (
                         <motion.div key="pending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
-                            {/* Incoming */}
                             <div>
                                 <h3 className="font-bold mb-3">📥 Permintaan Masuk ({incoming.length})</h3>
                                 {incoming.length > 0 ? (
@@ -157,15 +170,14 @@ export default function FriendsPage() {
                                                     <p className="text-xs text-text-muted">⭐ {r.arcadia_points} pts</p>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => respondRequest(r.friendship_id, 'accept')} className="btn-primary text-xs !py-1 !px-3">Terima</button>
-                                                    <button onClick={() => respondRequest(r.friendship_id, 'reject')} className="btn-secondary text-xs !py-1 !px-3">Tolak</button>
+                                                    <button onClick={() => respondRequest(r.friendship_id!, 'accept')} className="btn-primary text-xs !py-1 !px-3">Terima</button>
+                                                    <button onClick={() => respondRequest(r.friendship_id!, 'reject')} className="btn-secondary text-xs !py-1 !px-3">Tolak</button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : <p className="text-text-muted text-sm">Tidak ada permintaan masuk</p>}
                             </div>
-                            {/* Outgoing */}
                             <div>
                                 <h3 className="font-bold mb-3">📤 Permintaan Terkirim ({outgoing.length})</h3>
                                 {outgoing.length > 0 ? (
@@ -204,28 +216,118 @@ export default function FriendsPage() {
                                 <div className="space-y-3">
                                     {searchResults.map((p, i) => (
                                         <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                                            className="card !p-4 flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl font-bold shrink-0">
-                                                {p.username.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-bold">{p.username}</p>
-                                                    <span className="badge badge-primary text-xs">{p.role}</span>
+                                            className="card !p-0 overflow-hidden">
+                                            {/* Player Header - clickable to expand */}
+                                            <button onClick={() => setExpandedPlayer(expandedPlayer === p.id ? null : p.id)}
+                                                className="w-full flex items-center gap-4 p-4 hover:bg-surface-light/50 transition-colors text-left">
+                                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold shrink-0">
+                                                    {p.username.charAt(0).toUpperCase()}
                                                 </div>
-                                                <p className="text-xs text-text-muted">⭐ {p.arcadia_points} pts</p>
-                                            </div>
-                                            <div className="shrink-0">
-                                                {p.friendship_status === 'friend' ? (
-                                                    <span className="badge badge-success">✓ Teman</span>
-                                                ) : p.friendship_status === 'pending_sent' ? (
-                                                    <span className="badge badge-warning">⏳ Pending</span>
-                                                ) : p.friendship_status === 'pending_received' ? (
-                                                    <span className="badge badge-secondary">📩 Konfirmasi</span>
-                                                ) : (
-                                                    <button onClick={() => sendRequest(p.id)} className="btn-primary text-xs !py-1.5 !px-3">➕ Tambah</button>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <p className="font-bold text-lg">{p.username}</p>
+                                                        <span className={`badge text-xs ${p.role === 'superadmin' ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black' : p.role === 'admin' ? 'badge-warning' : 'badge-primary'}`}>
+                                                            {p.role === 'superadmin' ? '👑 Super Admin' : p.role}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 text-sm text-text-muted">
+                                                        <span>⭐ {p.arcadia_points.toLocaleString()} pts</span>
+                                                        {p.games && p.games.length > 0 && <span>🎮 {p.games.length} game</span>}
+                                                        {p.stats && <span>🏆 {p.stats.win_rate}% win</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 shrink-0">
+                                                    {p.friendship_status === 'friend' ? (
+                                                        <span className="badge badge-success">✓ Teman</span>
+                                                    ) : p.friendship_status === 'pending_sent' ? (
+                                                        <span className="badge badge-warning">⏳ Pending</span>
+                                                    ) : p.friendship_status === 'pending_received' ? (
+                                                        <span className="badge badge-secondary">📩 Konfirmasi</span>
+                                                    ) : (
+                                                        <span onClick={(e) => { e.stopPropagation(); sendRequest(p.id); }}
+                                                            className="btn-primary text-xs !py-1.5 !px-3 cursor-pointer">➕ Tambah</span>
+                                                    )}
+                                                    <svg className={`w-5 h-5 text-text-muted transition-transform ${expandedPlayer === p.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </button>
+
+                                            {/* Expanded Profile */}
+                                            <AnimatePresence>
+                                                {expandedPlayer === p.id && (
+                                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                                        transition={{ duration: 0.2 }} className="overflow-hidden">
+                                                        <div className="border-t border-border p-4 space-y-4 bg-surface-light/30">
+                                                            {/* Stats Grid */}
+                                                            {p.stats && (
+                                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                                    {[
+                                                                        { label: 'Points', value: p.arcadia_points.toLocaleString(), icon: '⭐' },
+                                                                        { label: 'Win Rate', value: `${p.stats.win_rate}%`, icon: '🏆' },
+                                                                        { label: 'Party', value: p.stats.parties_joined, icon: '🎮' },
+                                                                        { label: 'Rating', value: p.stats.avg_rating.toFixed(1), icon: '💎' },
+                                                                    ].map((s, si) => (
+                                                                        <div key={si} className="bg-surface rounded-xl p-3 text-center border border-border">
+                                                                            <span className="text-lg block">{s.icon}</span>
+                                                                            <p className="font-bold text-sm">{s.value}</p>
+                                                                            <p className="text-[11px] text-text-muted">{s.label}</p>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Games */}
+                                                            {p.games && p.games.length > 0 ? (
+                                                                <div>
+                                                                    <h4 className="text-sm font-bold mb-2">🎮 Game Favorit</h4>
+                                                                    <div className="space-y-2">
+                                                                        {p.games.map((g, gi) => (
+                                                                            <div key={gi} className="flex items-center gap-3 p-2.5 rounded-lg bg-surface border border-border">
+                                                                                <GameIcon icon={g.game_icon} name={g.game_name} size="md" />
+                                                                                <div className="flex-1 min-w-0">
+                                                                                    <p className="font-medium text-sm">{g.game_name} {g.is_favorite ? '❤️' : ''}</p>
+                                                                                    <div className="flex items-center gap-2 text-xs text-text-muted">
+                                                                                        {g.rank_name && <span>{g.rank_icon} {g.rank_name}</span>}
+                                                                                        {g.role_name && <span>• {g.role_icon} {g.role_name}</span>}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <p className="text-text-muted text-sm text-center py-2">Belum ada game terdaftar</p>
+                                                            )}
+
+                                                            {/* Tournament Stats */}
+                                                            {p.stats && (
+                                                                <div className="flex items-center justify-between text-sm bg-surface rounded-xl p-3 border border-border">
+                                                                    <div className="text-center flex-1">
+                                                                        <p className="font-bold">{p.stats.tournaments_played}</p>
+                                                                        <p className="text-[11px] text-text-muted">Tournament</p>
+                                                                    </div>
+                                                                    <div className="w-px h-8 bg-border" />
+                                                                    <div className="text-center flex-1">
+                                                                        <p className="font-bold text-success">{p.stats.tournaments_won}</p>
+                                                                        <p className="text-[11px] text-text-muted">Menang</p>
+                                                                    </div>
+                                                                    <div className="w-px h-8 bg-border" />
+                                                                    <div className="text-center flex-1">
+                                                                        <p className="font-bold">{p.stats.total_ratings}</p>
+                                                                        <p className="text-[11px] text-text-muted">Reviews</p>
+                                                                    </div>
+                                                                    <div className="w-px h-8 bg-border" />
+                                                                    <div className="text-center flex-1">
+                                                                        <p className="font-bold text-primary">{new Date(p.created_at).toLocaleDateString('id', { month: 'short', year: 'numeric' })}</p>
+                                                                        <p className="text-[11px] text-text-muted">Joined</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </motion.div>
                                                 )}
-                                            </div>
+                                            </AnimatePresence>
                                         </motion.div>
                                     ))}
                                 </div>
