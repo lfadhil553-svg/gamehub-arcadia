@@ -44,7 +44,7 @@ export default function AdminPage() {
         else addToast(result.error, 'error');
     };
 
-    if (authLoading || !user || user.role !== 'admin') return null;
+    if (authLoading || !user || (user.role !== 'admin' && user.role !== 'superadmin')) return null;
 
     return (
         <AppLayout>
