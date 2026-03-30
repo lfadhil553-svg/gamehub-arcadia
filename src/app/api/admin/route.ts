@@ -119,6 +119,23 @@ export async function POST(req: Request) {
                 db.prepare('UPDATE reward_items SET is_active = ? WHERE id = ?').run(newStatus, target_id);
                 return NextResponse.json({ success: true, message: `Reward berhasil di-${newStatus ? 'aktifkan' : 'nonaktifkan'}` });
             }
+            case 'add_reward': {
+                if (!data || !data.name || !data.cost) {
+                    return NextResponse.json({ success: false, error: 'Nama dan cost wajib diisi' }, { status: 400 });
+                }
+                const { v4: uuidv4 } = await import('uuid');
+                const id = uuidv4();
+                db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)')
+                    .run(id, data.name, data.description || '', data.category || 'voucher', data.cost, data.stock ?? -1);
+                return NextResponse.json({ success: true, message: 'Reward berhasil ditambahkan' });
+            }
+            case 'delete_reward': {
+                const reward = db.prepare('SELECT id FROM reward_items WHERE id = ?').get(target_id);
+                if (!reward) return NextResponse.json({ success: false, error: 'Reward tidak ditemukan' }, { status: 404 });
+                db.prepare('DELETE FROM redeem_history WHERE reward_id = ?').run(target_id);
+                db.prepare('DELETE FROM reward_items WHERE id = ?').run(target_id);
+                return NextResponse.json({ success: true, message: 'Reward berhasil dihapus' });
+            }
             default:
                 return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
         }

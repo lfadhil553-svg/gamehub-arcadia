@@ -21,6 +21,15 @@ export default function AdminPage() {
     const [data, setData] = useState<AdminData | null>(null);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState<'overview' | 'users' | 'games' | 'tournaments' | 'rewards'>('overview');
+    const [showAddReward, setShowAddReward] = useState(false);
+    const [newReward, setNewReward] = useState({ name: '', description: '', category: 'voucher', cost: '', stock: '-1' });
+
+    const handleAddReward = async () => {
+        if (!newReward.name || !newReward.cost) { addToast('Nama dan cost wajib diisi', 'error'); return; }
+        await adminAction('add_reward', '', { name: newReward.name, description: newReward.description, category: newReward.category, cost: parseInt(newReward.cost), stock: parseInt(newReward.stock) });
+        setNewReward({ name: '', description: '', category: 'voucher', cost: '', stock: '-1' });
+        setShowAddReward(false);
+    };
 
     useEffect(() => {
         if (!authLoading && (!user || (user.role !== 'admin' && user.role !== 'superadmin'))) router.push('/dashboard');
@@ -252,38 +261,92 @@ export default function AdminPage() {
 
                     {/* Rewards Tab */}
                     {tab === 'rewards' && (
-                        <div className="card !p-0 overflow-hidden">
-                            <table className="w-full text-sm">
-                                <thead className="bg-surface-light">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left text-text-muted font-medium">Reward</th>
-                                        <th className="px-4 py-3 text-left text-text-muted font-medium">Category</th>
-                                        <th className="px-4 py-3 text-left text-text-muted font-medium">Cost</th>
-                                        <th className="px-4 py-3 text-left text-text-muted font-medium">Stock</th>
-                                        <th className="px-4 py-3 text-left text-text-muted font-medium">Status</th>
-                                        <th className="px-4 py-3 text-left text-text-muted font-medium">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.rewards.map(r => (
-                                        <tr key={r.id} className={`border-t border-border hover:bg-surface-light transition-colors ${!r.is_active ? 'opacity-50' : ''}`}>
-                                            <td className="px-4 py-3 font-medium">{r.name}</td>
-                                            <td className="px-4 py-3 text-text-muted">{r.category}</td>
-                                            <td className="px-4 py-3">⭐ {r.cost}</td>
-                                            <td className="px-4 py-3">{r.stock === -1 ? '∞' : r.stock}</td>
-                                            <td className="px-4 py-3"><span className={`badge ${r.is_active ? 'badge-success' : 'badge-danger'}`}>{r.is_active ? 'Active' : 'Off'}</span></td>
-                                            <td className="px-4 py-3">
-                                                <button onClick={() => adminAction('toggle_reward', r.id)}
-                                                    className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${r.is_active
-                                                        ? 'bg-danger/10 text-danger hover:bg-danger/20'
-                                                        : 'bg-success/10 text-success hover:bg-success/20'}`}>
-                                                    {r.is_active ? '⏸ Off' : '▶ On'}
-                                                </button>
-                                            </td>
+                        <div className="space-y-4">
+                            <div className="flex justify-end">
+                                <button onClick={() => setShowAddReward(!showAddReward)}
+                                    className="btn-primary text-sm">{showAddReward ? '✕ Batal' : '➕ Tambah Reward'}</button>
+                            </div>
+
+                            {/* Add Reward Form */}
+                            {showAddReward && (
+                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                                    className="card border-2 border-primary/30 space-y-4">
+                                    <h3 className="font-bold">➕ Tambah Reward Baru</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-xs text-text-muted mb-1 block">Nama Reward *</label>
+                                            <input className="input w-full" placeholder="Contoh: Voucher 50K" value={newReward.name}
+                                                onChange={e => setNewReward(p => ({ ...p, name: e.target.value }))} />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-text-muted mb-1 block">Category</label>
+                                            <select className="input w-full" value={newReward.category}
+                                                onChange={e => setNewReward(p => ({ ...p, category: e.target.value }))}>
+                                                <option value="voucher">Voucher</option>
+                                                <option value="merchandise">Merchandise</option>
+                                                <option value="tournament_entry">Tournament Entry</option>
+                                                <option value="gaming_cafe">Gaming Cafe</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-text-muted mb-1 block">Cost (Points) *</label>
+                                            <input type="number" className="input w-full" placeholder="Contoh: 500" value={newReward.cost}
+                                                onChange={e => setNewReward(p => ({ ...p, cost: e.target.value }))} />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs text-text-muted mb-1 block">Stock (-1 = unlimited)</label>
+                                            <input type="number" className="input w-full" placeholder="-1" value={newReward.stock}
+                                                onChange={e => setNewReward(p => ({ ...p, stock: e.target.value }))} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-text-muted mb-1 block">Deskripsi</label>
+                                        <input className="input w-full" placeholder="Deskripsi reward..." value={newReward.description}
+                                            onChange={e => setNewReward(p => ({ ...p, description: e.target.value }))} />
+                                    </div>
+                                    <button onClick={handleAddReward} className="btn-primary">💾 Simpan Reward</button>
+                                </motion.div>
+                            )}
+
+                            <div className="card !p-0 overflow-hidden">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-surface-light">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-text-muted font-medium">Reward</th>
+                                            <th className="px-4 py-3 text-left text-text-muted font-medium">Category</th>
+                                            <th className="px-4 py-3 text-left text-text-muted font-medium">Cost</th>
+                                            <th className="px-4 py-3 text-left text-text-muted font-medium">Stock</th>
+                                            <th className="px-4 py-3 text-left text-text-muted font-medium">Status</th>
+                                            <th className="px-4 py-3 text-left text-text-muted font-medium">Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {data.rewards.map(r => (
+                                            <tr key={r.id} className={`border-t border-border hover:bg-surface-light transition-colors ${!r.is_active ? 'opacity-50' : ''}`}>
+                                                <td className="px-4 py-3 font-medium">{r.name}</td>
+                                                <td className="px-4 py-3 text-text-muted">{r.category}</td>
+                                                <td className="px-4 py-3">⭐ {r.cost}</td>
+                                                <td className="px-4 py-3">{r.stock === -1 ? '∞' : r.stock}</td>
+                                                <td className="px-4 py-3"><span className={`badge ${r.is_active ? 'badge-success' : 'badge-danger'}`}>{r.is_active ? 'Active' : 'Off'}</span></td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <button onClick={() => adminAction('toggle_reward', r.id)}
+                                                            className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${r.is_active
+                                                                ? 'bg-danger/10 text-danger hover:bg-danger/20'
+                                                                : 'bg-success/10 text-success hover:bg-success/20'}`}>
+                                                            {r.is_active ? '⏸ Off' : '▶ On'}
+                                                        </button>
+                                                        <button onClick={() => { if (confirm(`Hapus reward "${r.name}"?`)) adminAction('delete_reward', r.id); }}
+                                                            className="px-2.5 py-1 text-xs rounded-lg font-medium bg-danger/10 text-danger hover:bg-danger/20 transition-all">
+                                                            🗑 Hapus
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
                 </div>
