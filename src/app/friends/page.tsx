@@ -4,6 +4,7 @@ import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface PlayerGame {
@@ -20,7 +21,7 @@ interface FriendUser {
     id: string; username: string; avatar: string; role: string;
     arcadia_points: number; reputation_score?: number; friendship_id?: string;
     friends_since?: string; requested_at?: string; friendship_status?: string;
-    games?: PlayerGame[]; stats?: PlayerStats;
+    created_at?: string; games?: PlayerGame[]; stats?: PlayerStats;
 }
 
 export default function FriendsPage() {
@@ -122,19 +123,19 @@ export default function FriendsPage() {
                     {tab === 'friends' && (
                         <motion.div key="friends" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                             {loading ? (
-                                <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="skeleton h-20" />)}</div>
+                                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="skeleton h-20" />)}</div>
                             ) : friends.length > 0 ? (
                                 <div className="grid md:grid-cols-2 gap-4">
                                     {friends.map((f, i) => (
                                         <motion.div key={f.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                                             className="card !p-4 flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xl font-bold shrink-0">
-                                                {f.username.charAt(0).toUpperCase()}
-                                            </div>
+                                            <PlayerAvatar avatar={f.avatar} username={f.username} size="lg" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <p className="font-bold truncate">{f.username}</p>
-                                                    <span className="badge badge-primary text-xs">{f.role}</span>
+                                                    <span className={`badge text-xs ${f.role === 'superadmin' ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black' : f.role === 'admin' ? 'badge-warning' : 'badge-primary'}`}>
+                                                        {f.role === 'superadmin' ? '👑' : f.role}
+                                                    </span>
                                                 </div>
                                                 <p className="text-xs text-text-muted">⭐ {f.arcadia_points} pts</p>
                                             </div>
@@ -162,9 +163,7 @@ export default function FriendsPage() {
                                     <div className="space-y-3">
                                         {incoming.map(r => (
                                             <div key={r.friendship_id} className="card !p-4 flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-lg font-bold">
-                                                    {r.username.charAt(0).toUpperCase()}
-                                                </div>
+                                                <PlayerAvatar avatar={r.avatar} username={r.username} size="md" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-bold">{r.username}</p>
                                                     <p className="text-xs text-text-muted">⭐ {r.arcadia_points} pts</p>
@@ -184,9 +183,7 @@ export default function FriendsPage() {
                                     <div className="space-y-3">
                                         {outgoing.map(r => (
                                             <div key={r.friendship_id} className="card !p-4 flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-primary flex items-center justify-center text-lg font-bold">
-                                                    {r.username.charAt(0).toUpperCase()}
-                                                </div>
+                                                <PlayerAvatar avatar={r.avatar} username={r.username} size="md" />
                                                 <div className="flex-1">
                                                     <p className="font-bold">{r.username}</p>
                                                     <p className="text-xs text-text-muted">Menunggu konfirmasi...</p>
@@ -220,9 +217,7 @@ export default function FriendsPage() {
                                             {/* Player Header - clickable to expand */}
                                             <button onClick={() => setExpandedPlayer(expandedPlayer === p.id ? null : p.id)}
                                                 className="w-full flex items-center gap-4 p-4 hover:bg-surface-light/50 transition-colors text-left">
-                                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold shrink-0">
-                                                    {p.username.charAt(0).toUpperCase()}
-                                                </div>
+                                                <PlayerAvatar avatar={p.avatar} username={p.username} size="xl" />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-0.5">
                                                         <p className="font-bold text-lg">{p.username}</p>
@@ -319,7 +314,7 @@ export default function FriendsPage() {
                                                                     </div>
                                                                     <div className="w-px h-8 bg-border" />
                                                                     <div className="text-center flex-1">
-                                                                        <p className="font-bold text-primary">{new Date(p.created_at).toLocaleDateString('id', { month: 'short', year: 'numeric' })}</p>
+                                                                        <p className="font-bold text-primary">{p.created_at ? new Date(p.created_at).toLocaleDateString('id', { month: 'short', year: 'numeric' }) : '-'}</p>
                                                                         <p className="text-[11px] text-text-muted">Joined</p>
                                                                     </div>
                                                                 </div>

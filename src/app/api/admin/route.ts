@@ -25,6 +25,7 @@ export async function GET() {
         const games = db.prepare('SELECT * FROM games ORDER BY name').all();
         const rewards = db.prepare('SELECT * FROM reward_items ORDER BY created_at DESC').all();
         const pendingTournaments = db.prepare("SELECT t.*, g.name as game_name FROM tournaments t JOIN games g ON t.game_id = g.id WHERE t.status = 'draft' ORDER BY t.created_at DESC").all();
+        const allTournaments = db.prepare("SELECT t.id, t.name, t.status, t.max_participants, t.entry_fee, t.prize_pool, t.created_at, g.name as game_name FROM tournaments t JOIN games g ON t.game_id = g.id ORDER BY t.created_at DESC").all();
 
         return NextResponse.json({
             success: true,
@@ -43,6 +44,7 @@ export async function GET() {
                 games,
                 rewards,
                 pendingTournaments,
+                allTournaments,
             },
         });
     } catch {
@@ -95,6 +97,27 @@ export async function POST(req: Request) {
                 if (target.role === 'superadmin') return NextResponse.json({ success: false, error: 'Tidak bisa demote superadmin' }, { status: 400 });
                 db.prepare('UPDATE users SET role = ? WHERE id = ?').run('user', target_id);
                 return NextResponse.json({ success: true, message: 'Admin berhasil didemote jadi User' });
+            }
+            case 'toggle_game': {
+                const game = db.prepare('SELECT is_active FROM games WHERE id = ?').get(target_id) as { is_active: number } | undefined;
+                if (!game) return NextResponse.json({ success: false, error: 'Game tidak ditemukan' }, { status: 404 });
+                const newStatus = game.is_active ? 0 : 1;
+                db.prepare('UPDATE games SET is_active = ? WHERE id = ?').run(newStatus, target_id);
+                return NextResponse.json({ success: true, message: `Game berhasil di-${newStatus ? 'aktifkan' : 'nonaktifkan'}` });
+            }
+            case 'toggle_tournament': {
+                const tournament = db.prepare('SELECT status FROM tournaments WHERE id = ?').get(target_id) as { status: string } | undefined;
+                if (!tournament) return NextResponse.json({ success: false, error: 'Tournament tidak ditemukan' }, { status: 404 });
+                const newStatus = tournament.status === 'cancelled' ? 'registration' : 'cancelled';
+                db.prepare('UPDATE tournaments SET status = ? WHERE id = ?').run(newStatus, target_id);
+                return NextResponse.json({ success: true, message: `Tournament berhasil di-${newStatus === 'cancelled' ? 'nonaktifkan' : 'aktifkan'}` });
+            }
+            case 'toggle_reward': {
+                const reward = db.prepare('SELECT is_active FROM reward_items WHERE id = ?').get(target_id) as { is_active: number } | undefined;
+                if (!reward) return NextResponse.json({ success: false, error: 'Reward tidak ditemukan' }, { status: 404 });
+                const newStatus = reward.is_active ? 0 : 1;
+                db.prepare('UPDATE reward_items SET is_active = ? WHERE id = ?').run(newStatus, target_id);
+                return NextResponse.json({ success: true, message: `Reward berhasil di-${newStatus ? 'aktifkan' : 'nonaktifkan'}` });
             }
             default:
                 return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });

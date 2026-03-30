@@ -54,8 +54,13 @@ export async function PUT(req: Request) {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
-        const { games } = await req.json();
+        const { games, avatar } = await req.json();
         const db = getDb();
+
+        // Update avatar if provided
+        if (avatar && typeof avatar === 'string' && avatar.startsWith('/avatars/')) {
+            db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, user.id);
+        }
 
         if (games && Array.isArray(games)) {
             // Clear existing and re-insert

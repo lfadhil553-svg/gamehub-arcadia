@@ -4,8 +4,10 @@ import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, languageNames, Language } from '@/lib/i18n';
+
+const AVATAR_OPTIONS = Array.from({ length: 14 }, (_, i) => `/avatars/avatar_${i + 1}.png`);
 
 interface ProfileData {
     user: { id: string; username: string; email: string; avatar: string; role: string; arcadia_points: number; reputation_score: number; referral_code: string; created_at: string };
@@ -14,12 +16,14 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-    const { user, loading: authLoading, logout } = useApp();
+    const { user, loading: authLoading, logout, refreshUser } = useApp();
     const router = useRouter();
     const { language, setLanguage, t } = useLanguage();
     const [data, setData] = useState<ProfileData | null>(null);
     const [loading, setLoading] = useState(true);
     const [showLangPicker, setShowLangPicker] = useState(false);
+    const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+    const [savingAvatar, setSavingAvatar] = useState(false);
 
     useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
     useEffect(() => {
@@ -31,7 +35,25 @@ export default function ProfilePage() {
         }
     }, [user]);
 
+    const selectAvatar = async (avatarPath: string) => {
+        setSavingAvatar(true);
+        const res = await fetch('/api/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ avatar: avatarPath }),
+        });
+        const result = await res.json();
+        if (result.success) {
+            setData(prev => prev ? { ...prev, user: { ...prev.user, avatar: avatarPath } } : null);
+            if (refreshUser) refreshUser();
+            setShowAvatarPicker(false);
+        }
+        setSavingAvatar(false);
+    };
+
     if (authLoading || !user) return null;
+
+    const currentAvatar = data?.user?.avatar;
 
     return (
         <AppLayout>
@@ -40,8 +62,22 @@ export default function ProfilePage() {
                     {/* Profile Header */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                         className="card text-center !p-8">
-                        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-5xl font-bold mx-auto mb-4 glow-primary">
-                            {data.user.username.charAt(0).toUpperCase()}
+                        {/* Avatar - clickable to change */}
+                        <div className="relative inline-block mb-4">
+                            <button onClick={() => setShowAvatarPicker(true)}
+                                className="group relative w-24 h-24 rounded-2xl overflow-hidden mx-auto block">
+                                {currentAvatar && currentAvatar.startsWith('/avatars/') ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={currentAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-5xl font-bold glow-primary">
+                                        {data.user.username.charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-white text-sm font-medium">📷 Ganti</span>
+                                </div>
+                            </button>
                         </div>
                         <h1 className="text-2xl font-bold mb-1">{data.user.username}</h1>
                         <p className="text-text-muted text-sm mb-2">{data.user.email}</p>
@@ -56,6 +92,40 @@ export default function ProfilePage() {
                             <span className="font-mono font-bold text-primary">{data.user.referral_code}</span>
                         </div>
                     </motion.div>
+
+                    {/* Avatar Picker Modal */}
+                    <AnimatePresence>
+                        {showAvatarPicker && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+                                onClick={() => setShowAvatarPicker(false)}>
+                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                                    className="bg-surface rounded-2xl border border-border p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto"
+                                    onClick={e => e.stopPropagation()}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold">🖼️ Pilih Avatar</h3>
+                                        <button onClick={() => setShowAvatarPicker(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-light">✕</button>
+                                    </div>
+                                    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
+                                        {AVATAR_OPTIONS.map((av) => (
+                                            <button key={av} onClick={() => !savingAvatar && selectAvatar(av)}
+                                                disabled={savingAvatar}
+                                                className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all hover:scale-105 ${currentAvatar === av ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'}`}>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={av} alt="Avatar option" className="w-full h-full object-cover" />
+                                                {currentAvatar === av && (
+                                                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                                        <span className="bg-primary text-white text-xs px-2 py-0.5 rounded-full">✓</span>
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {savingAvatar && <p className="text-center text-text-muted text-sm mt-3">Menyimpan...</p>}
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
