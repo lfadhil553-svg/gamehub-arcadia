@@ -325,6 +325,16 @@ function initializeDatabase(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
   `);
 
+  // Migrations: add columns that may be missing on older databases
+  const userColumns = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+  const columnNames = userColumns.map(c => c.name);
+  if (!columnNames.includes('avatar')) {
+    db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT '/avatars/default.png'");
+  }
+  if (!columnNames.includes('updated_at')) {
+    db.exec("ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))");
+  }
+
   // Seed data if empty
   const gameCount = db.prepare('SELECT COUNT(*) as count FROM games').get() as { count: number };
   if (gameCount.count === 0) {
