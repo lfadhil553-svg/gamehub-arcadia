@@ -147,9 +147,10 @@ export async function registerUser(username: string, email: string, password: st
     const userId = uuidv4();
     const passwordHash = hashPassword(password);
     const referralCode = 'ARC-' + userId.slice(0, 8).toUpperCase();
+    const randomAvatar = `/avatars/avatar_${Math.floor(Math.random() * 15) + 1}.png`;
 
-    db.prepare('INSERT INTO users (id, username, email, password_hash, referral_code, is_verified) VALUES (?, ?, ?, ?, ?, 1)')
-        .run(userId, username, email, passwordHash, referralCode);
+    db.prepare('INSERT INTO users (id, username, email, password_hash, referral_code, is_verified, avatar) VALUES (?, ?, ?, ?, ?, 1, ?)')
+        .run(userId, username, email, passwordHash, referralCode, randomAvatar);
 
     db.prepare('INSERT INTO wallets (id, user_id, balance) VALUES (?, ?, 100)')
         .run(uuidv4(), userId);
