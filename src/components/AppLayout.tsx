@@ -1,17 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
+import { useLanguage } from '@/lib/i18n';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const navItems = [
-    { label: 'Dashboard', href: '/dashboard', icon: '🏠' },
-    { label: 'Party', href: '/party', icon: '🎮' },
-    { label: 'Tournament', href: '/tournament', icon: '🏆' },
-    { label: 'Friends', href: '/friends', icon: '👥' },
-    { label: 'Rewards', href: '/rewards', icon: '🎁' },
-    { label: 'Profile', href: '/profile', icon: '👤' },
+const navKeys = [
+    { labelKey: 'nav.dashboard', href: '/dashboard', icon: '🏠' },
+    { labelKey: 'nav.party', href: '/party', icon: '🎮' },
+    { labelKey: 'nav.tournament', href: '/tournament', icon: '🏆' },
+    { labelKey: 'nav.friends', href: '/friends', icon: '👥' },
+    { labelKey: 'nav.rewards', href: '/rewards', icon: '🎁' },
+    { labelKey: 'nav.profile', href: '/profile', icon: '👤' },
 ];
 
 const SW = 240;
@@ -19,6 +20,7 @@ const SC = 68;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const { user, toasts, removeToast, logout } = useApp();
+    const { t } = useLanguage();
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -74,7 +76,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto overflow-x-hidden">
-                    {navItems.map(item => {
+                    {navKeys.map(item => {
                         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                         return (
                             <Link key={item.href} href={item.href}
@@ -84,11 +86,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                         ? 'bg-gradient-to-r from-primary/20 to-secondary/10 text-primary border border-primary/20'
                                         : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
                                 <span className="text-lg shrink-0 w-6 text-center">{item.icon}</span>
-                                {!collapsed && <span className="font-medium whitespace-nowrap text-sm">{item.label}</span>}
+                                {!collapsed && <span className="font-medium whitespace-nowrap text-sm">{t(item.labelKey)}</span>}
                                 {isActive && !collapsed && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />}
                                 {collapsed && (
                                     <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg bg-[#1a1f35] border border-border text-xs font-medium text-text whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-[60]">
-                                        {item.label}
+                                        {t(item.labelKey)}
                                     </div>
                                 )}
                             </Link>
@@ -157,13 +159,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <button onClick={() => setMobileOpen(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-light">✕</button>
                 </div>
                 <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto">
-                    {navItems.map(item => {
+                    {navKeys.map(item => {
                         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                         return (
                             <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                                 className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${isActive ? 'bg-gradient-to-r from-primary/20 to-secondary/10 text-primary border border-primary/20' : 'text-text-muted hover:text-text hover:bg-surface-light'}`}>
                                 <span className="text-xl">{item.icon}</span>
-                                <span className="font-medium">{item.label}</span>
+                                <span className="font-medium">{t(item.labelKey)}</span>
                                 {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />}
                             </Link>
                         );
@@ -194,7 +196,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <span className="font-bold gradient-text text-sm">ARCADIA</span>
                         </button>
                         <div className="hidden lg:block">
-                            <h2 className="text-lg font-bold">{navItems.find(n => pathname.startsWith(n.href))?.label || 'ARCADIA'}</h2>
+                            <h2 className="text-lg font-bold">{(() => { const nav = navKeys.find(n => pathname.startsWith(n.href)); return nav ? t(nav.labelKey) : 'ARCADIA'; })()}</h2>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border text-sm">
@@ -222,13 +224,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Mobile Bottom Nav */}
             <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-xl border-t border-border">
                 <div className="flex justify-around items-center py-2 px-2">
-                    {navItems.map(item => {
+                    {navKeys.map(item => {
                         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                         return (
                             <Link key={item.href} href={item.href}
                                 className={`flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-all duration-300 relative ${isActive ? 'text-primary' : 'text-text-muted'}`}>
                                 <span className={`text-xl transition-transform duration-300 ${isActive ? 'scale-110' : ''}`}>{item.icon}</span>
-                                <span className="text-[10px] font-medium">{item.label}</span>
+                                <span className="text-[10px] font-medium">{t(item.labelKey)}</span>
                                 {isActive && <motion.div layoutId="mobileNav" className="absolute -bottom-0 w-8 h-0.5 rounded-full bg-primary" />}
                             </Link>
                         );

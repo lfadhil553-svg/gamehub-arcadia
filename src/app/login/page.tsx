@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
+import { useLanguage } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
     const { login } = useApp();
+    const { t } = useLanguage();
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -59,8 +61,8 @@ export default function LoginPage() {
                     <Link href="/" className="inline-flex items-center gap-2 mb-6">
                         <img src="/logo.jpeg" alt="ARCADIA" className="w-12 h-12 rounded-xl object-cover" />
                     </Link>
-                    <h1 className="text-3xl font-bold mb-2">Selamat Datang <span className="gradient-text">Kembali</span></h1>
-                    <p className="text-text-muted">Login ke akun ARCADIA-mu</p>
+                    <h1 className="text-3xl font-bold mb-2">{t('auth.login')} <span className="gradient-text">ARCADIA</span></h1>
+                    <p className="text-text-muted">{t('auth.login_subtitle')}</p>
                 </div>
 
                 <div className="card">
@@ -73,12 +75,12 @@ export default function LoginPage() {
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-text-muted mb-2">Email</label>
+                            <label className="block text-sm font-medium text-text-muted mb-2">{t('auth.email')}</label>
                             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className="input" required />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-text-muted mb-2">Password</label>
+                            <label className="block text-sm font-medium text-text-muted mb-2">{t('auth.password')}</label>
                             <div className="relative">
                                 <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="input !pr-12" required />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -105,14 +107,14 @@ export default function LoginPage() {
                         </label>
 
                         <button type="submit" disabled={loading} className="btn-primary w-full !py-3">
-                            {loading ? <span className="animate-spin">⏳</span> : '🚀'} {loading ? 'Loading...' : 'Login'}
+                            {loading ? <span className="animate-spin">⏳</span> : '🚀'} {loading ? t('common.loading') : t('auth.login')}
                         </button>
                     </form>
 
                     <div className="mt-6 text-center">
                         <p className="text-text-muted text-sm">
-                            Belum punya akun?{' '}
-                            <Link href="/register" className="text-primary hover:underline font-medium">Daftar Gratis</Link>
+                            {t('auth.no_account')}{' '}
+                            <Link href="/register" className="text-primary hover:underline font-medium">{t('auth.register_here')}</Link>
                         </p>
                     </div>
 

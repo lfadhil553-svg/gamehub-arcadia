@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
+import { useLanguage } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
@@ -26,6 +27,7 @@ interface FriendUser {
 
 export default function FriendsPage() {
     const { user, loading: authLoading, addToast } = useApp();
+    const { t } = useLanguage();
     const router = useRouter();
     const [tab, setTab] = useState<'friends' | 'pending' | 'search'>('friends');
     const [friends, setFriends] = useState<FriendUser[]>([]);
@@ -55,7 +57,7 @@ export default function FriendsPage() {
     useEffect(() => { if (user) fetchFriends(); }, [user, fetchFriends]);
 
     const searchPlayers = async () => {
-        if (searchQuery.length < 2) { addToast('Minimal 2 karakter', 'error'); return; }
+        if (searchQuery.length < 2) { addToast(t('friends.search_min'), 'error'); return; }
         setSearching(true);
         setExpandedPlayer(null);
         const res = await fetch(`/api/players?search=${encodeURIComponent(searchQuery)}`);
@@ -94,17 +96,17 @@ export default function FriendsPage() {
     if (authLoading || !user) return null;
 
     const tabs = [
-        { key: 'friends' as const, label: '👥 Teman', count: friends.length },
-        { key: 'pending' as const, label: '📩 Permintaan', count: incoming.length },
-        { key: 'search' as const, label: '🔍 Cari Player', count: 0 },
+        { key: 'friends' as const, label: t('friends.tab_friends'), count: friends.length },
+        { key: 'pending' as const, label: t('friends.tab_pending'), count: incoming.length },
+        { key: 'search' as const, label: t('friends.tab_search'), count: 0 },
     ];
 
     return (
         <AppLayout>
             <div className="space-y-6">
                 <div>
-                    <h1 className="text-2xl font-bold">👥 Teman</h1>
-                    <p className="text-text-muted text-sm">Kelola teman dan cari player baru</p>
+                    <h1 className="text-2xl font-bold">{t('friends.title')}</h1>
+                    <p className="text-text-muted text-sm">{t('friends.subtitle')}</p>
                 </div>
 
                 {/* Tabs */}
@@ -139,16 +141,16 @@ export default function FriendsPage() {
                                                 </div>
                                                 <p className="text-xs text-text-muted">⭐ {f.arcadia_points} pts</p>
                                             </div>
-                                            <button onClick={() => removeFriend(f.friendship_id!)} className="text-xs text-danger hover:underline shrink-0">Hapus</button>
+                                            <button onClick={() => removeFriend(f.friendship_id!)} className="text-xs text-danger hover:underline shrink-0">{t('friends.remove')}</button>
                                         </motion.div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="card text-center !py-12">
                                     <span className="text-5xl block mb-4">👥</span>
-                                    <p className="font-bold text-lg mb-1">Belum Ada Teman</p>
-                                    <p className="text-text-muted text-sm mb-4">Cari player dan tambahkan sebagai teman!</p>
-                                    <button onClick={() => setTab('search')} className="btn-primary">🔍 Cari Player</button>
+                                    <p className="font-bold text-lg mb-1">{t('friends.no_friends')}</p>
+                                    <p className="text-text-muted text-sm mb-4">{t('friends.no_friends_desc')}</p>
+                                    <button onClick={() => setTab('search')} className="btn-primary">{t('friends.find_player')}</button>
                                 </div>
                             )}
                         </motion.div>
@@ -158,7 +160,7 @@ export default function FriendsPage() {
                     {tab === 'pending' && (
                         <motion.div key="pending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-6">
                             <div>
-                                <h3 className="font-bold mb-3">📥 Permintaan Masuk ({incoming.length})</h3>
+                                <h3 className="font-bold mb-3">{t('friends.incoming')} ({incoming.length})</h3>
                                 {incoming.length > 0 ? (
                                     <div className="space-y-3">
                                         {incoming.map(r => (
@@ -169,16 +171,16 @@ export default function FriendsPage() {
                                                     <p className="text-xs text-text-muted">⭐ {r.arcadia_points} pts</p>
                                                 </div>
                                                 <div className="flex gap-2">
-                                                    <button onClick={() => respondRequest(r.friendship_id!, 'accept')} className="btn-primary text-xs !py-1 !px-3">Terima</button>
-                                                    <button onClick={() => respondRequest(r.friendship_id!, 'reject')} className="btn-secondary text-xs !py-1 !px-3">Tolak</button>
+                                                    <button onClick={() => respondRequest(r.friendship_id!, 'accept')} className="btn-primary text-xs !py-1 !px-3">{t('friends.accept')}</button>
+                                                    <button onClick={() => respondRequest(r.friendship_id!, 'reject')} className="btn-secondary text-xs !py-1 !px-3">{t('friends.reject')}</button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-                                ) : <p className="text-text-muted text-sm">Tidak ada permintaan masuk</p>}
+                                ) : <p className="text-text-muted text-sm">{t('friends.no_incoming')}</p>}
                             </div>
                             <div>
-                                <h3 className="font-bold mb-3">📤 Permintaan Terkirim ({outgoing.length})</h3>
+                                <h3 className="font-bold mb-3">{t('friends.outgoing')} ({outgoing.length})</h3>
                                 {outgoing.length > 0 ? (
                                     <div className="space-y-3">
                                         {outgoing.map(r => (
@@ -186,13 +188,13 @@ export default function FriendsPage() {
                                                 <PlayerAvatar avatar={r.avatar} username={r.username} size="md" />
                                                 <div className="flex-1">
                                                     <p className="font-bold">{r.username}</p>
-                                                    <p className="text-xs text-text-muted">Menunggu konfirmasi...</p>
+                                                    <p className="text-xs text-text-muted">{t('friends.waiting')}</p>
                                                 </div>
-                                                <span className="badge badge-warning text-xs">Pending</span>
+                                                <span className="badge badge-warning text-xs">{t('friends.pending')}</span>
                                             </div>
                                         ))}
                                     </div>
-                                ) : <p className="text-text-muted text-sm">Tidak ada permintaan terkirim</p>}
+                                ) : <p className="text-text-muted text-sm">{t('friends.no_outgoing')}</p>}
                             </div>
                         </motion.div>
                     )}
@@ -201,11 +203,11 @@ export default function FriendsPage() {
                     {tab === 'search' && (
                         <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
                             <div className="flex gap-3">
-                                <input className="input flex-1" placeholder="🔍 Cari username player..." value={searchQuery}
+                                <input className="input flex-1" placeholder={t('friends.search_placeholder')} value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter') searchPlayers(); }} />
                                 <button onClick={searchPlayers} disabled={searching} className="btn-primary shrink-0">
-                                    {searching ? '⏳' : '🔍'} Cari
+                                    {searching ? '⏳' : '🔍'} {t('friends.search_btn')}
                                 </button>
                             </div>
 
@@ -233,14 +235,14 @@ export default function FriendsPage() {
                                                 </div>
                                                 <div className="flex items-center gap-3 shrink-0">
                                                     {p.friendship_status === 'friend' ? (
-                                                        <span className="badge badge-success">✓ Teman</span>
+                                                        <span className="badge badge-success">{t('friends.already_friend')}</span>
                                                     ) : p.friendship_status === 'pending_sent' ? (
                                                         <span className="badge badge-warning">⏳ Pending</span>
                                                     ) : p.friendship_status === 'pending_received' ? (
-                                                        <span className="badge badge-secondary">📩 Konfirmasi</span>
+                                                        <span className="badge badge-secondary">{t('friends.confirm_request')}</span>
                                                     ) : (
                                                         <span onClick={(e) => { e.stopPropagation(); sendRequest(p.id); }}
-                                                            className="btn-primary text-xs !py-1.5 !px-3 cursor-pointer">➕ Tambah</span>
+                                                            className="btn-primary text-xs !py-1.5 !px-3 cursor-pointer">{t('friends.add')}</span>
                                                     )}
                                                     <svg className={`w-5 h-5 text-text-muted transition-transform ${expandedPlayer === p.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -275,7 +277,7 @@ export default function FriendsPage() {
                                                             {/* Games */}
                                                             {p.games && p.games.length > 0 ? (
                                                                 <div>
-                                                                    <h4 className="text-sm font-bold mb-2">🎮 Game Favorit</h4>
+                                                                    <h4 className="text-sm font-bold mb-2">{t('friends.fav_games')}</h4>
                                                                     <div className="space-y-2">
                                                                         {p.games.map((g, gi) => (
                                                                             <div key={gi} className="flex items-center gap-3 p-2.5 rounded-lg bg-surface border border-border">
@@ -292,7 +294,7 @@ export default function FriendsPage() {
                                                                     </div>
                                                                 </div>
                                                             ) : (
-                                                                <p className="text-text-muted text-sm text-center py-2">Belum ada game terdaftar</p>
+                                                                <p className="text-text-muted text-sm text-center py-2">{t('friends.no_games')}</p>
                                                             )}
 
                                                             {/* Tournament Stats */}
@@ -300,17 +302,17 @@ export default function FriendsPage() {
                                                                 <div className="flex items-center justify-between text-sm bg-surface rounded-xl p-3 border border-border">
                                                                     <div className="text-center flex-1">
                                                                         <p className="font-bold">{p.stats.tournaments_played}</p>
-                                                                        <p className="text-[11px] text-text-muted">Tournament</p>
+                                                                        <p className="text-[11px] text-text-muted">{t('friends.tournament_stat')}</p>
                                                                     </div>
                                                                     <div className="w-px h-8 bg-border" />
                                                                     <div className="text-center flex-1">
                                                                         <p className="font-bold text-success">{p.stats.tournaments_won}</p>
-                                                                        <p className="text-[11px] text-text-muted">Menang</p>
+                                                                        <p className="text-[11px] text-text-muted">{t('friends.win_stat')}</p>
                                                                     </div>
                                                                     <div className="w-px h-8 bg-border" />
                                                                     <div className="text-center flex-1">
                                                                         <p className="font-bold">{p.stats.total_ratings}</p>
-                                                                        <p className="text-[11px] text-text-muted">Reviews</p>
+                                                                        <p className="text-[11px] text-text-muted">{t('friends.reviews_stat')}</p>
                                                                     </div>
                                                                     <div className="w-px h-8 bg-border" />
                                                                     <div className="text-center flex-1">
@@ -328,7 +330,7 @@ export default function FriendsPage() {
                                 </div>
                             ) : searchQuery && !searching ? (
                                 <div className="card text-center !py-8">
-                                    <p className="text-text-muted text-sm">Tidak ada player ditemukan untuk &ldquo;{searchQuery}&rdquo;</p>
+                                    <p className="text-text-muted text-sm">{t('friends.not_found')} &ldquo;{searchQuery}&rdquo;</p>
                                 </div>
                             ) : null}
                         </motion.div>

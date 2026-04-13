@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
+import { useLanguage } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,6 +13,7 @@ interface RedeemItem { id: string; reward_name: string; category: string; claim_
 
 export default function RewardsPage() {
     const { user, loading: authLoading, addToast, refreshUser } = useApp();
+    const { t } = useLanguage();
     const router = useRouter();
     const [wallet, setWallet] = useState<Wallet | null>(null);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -100,10 +102,10 @@ export default function RewardsPage() {
                             { key: 'rewards' as const, label: '🎁 Rewards', count: rewards.length },
                             { key: 'history' as const, label: '📜 Transaksi', count: transactions.length },
                             { key: 'redeem' as const, label: '🎫 Klaim', count: redeemHistory.length },
-                        ].map(t => (
-                            <button key={t.key} onClick={() => setTab(t.key)}
-                                className={`px-4 py-2 rounded-t-xl text-sm font-medium transition-all ${tab === t.key ? 'bg-primary/10 text-primary border-b-2 border-primary' : 'text-text-muted hover:text-text'}`}>
-                                {t.label} ({t.count})
+                        ].map(tb => (
+                            <button key={tb.key} onClick={() => setTab(tb.key)}
+                                className={`px-4 py-2 rounded-t-xl text-sm font-medium transition-all ${tab === tb.key ? 'bg-primary/10 text-primary border-b-2 border-primary' : 'text-text-muted hover:text-text'}`}>
+                                {tb.label} ({tb.count})
                             </button>
                         ))}
                     </div>
@@ -121,11 +123,11 @@ export default function RewardsPage() {
                                         <p className="text-text-muted text-xs mb-3">{reward.description}</p>
                                         <div className="flex items-center justify-between">
                                             <span className="font-bold text-primary">⭐ {reward.cost.toLocaleString()}</span>
-                                            <span className="text-xs text-text-muted">Stock: {reward.stock === -1 ? '∞' : reward.stock}</span>
+                                            <span className="text-xs text-text-muted">{t('rewards.stock')}: {reward.stock === -1 ? '∞' : reward.stock}</span>
                                         </div>
                                         <button onClick={() => handleRedeem(reward.id)} disabled={redeemingId === reward.id || (wallet?.balance || 0) < reward.cost}
                                             className="btn-primary w-full mt-3 text-sm">
-                                            {redeemingId === reward.id ? '⏳ Proses...' : (wallet?.balance || 0) < reward.cost ? '🔒 Points Kurang' : '🎁 Tukar'}
+                                            {redeemingId === reward.id ? `⏳ ...` : (wallet?.balance || 0) < reward.cost ? `🔒 ${t('rewards.not_enough')}` : `🎁 ${t('rewards.redeem')}`}
                                         </button>
                                     </div>
                                 ))}

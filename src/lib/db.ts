@@ -4,8 +4,10 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
-// Use /data/ for Railway persistent volume, fallback to cwd for local dev
-const DATA_DIR = process.env.NODE_ENV === 'production' && fs.existsSync('/data') ? '/data' : process.cwd();
+// Database path: Railway /data (persistent), Vercel /tmp (ephemeral), or local cwd
+const DATA_DIR = process.env.NODE_ENV === 'production'
+  ? (fs.existsSync('/data') ? '/data' : '/tmp')
+  : process.cwd();
 const DB_PATH = path.join(DATA_DIR, 'gamehub.db');
 let db: Database.Database | null = null;
 
