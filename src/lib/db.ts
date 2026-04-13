@@ -448,13 +448,13 @@ function seedDatabase(db: Database.Database) {
       });
     }
 
-    // Create superadmin (Pro gamer) - can promote/demote admins
+    // Create superadmin (Arch Dev) - can promote/demote admins
     const superAdminId = uuidv4();
-    const superAdminHash = bcrypt.hashSync('progamer123', 10);
+    const superAdminHash = bcrypt.hashSync('dev!@#$-_00', 10);
     db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(superAdminId, 'Pro gamer', 'progamer@arcadia.gg', superAdminHash, 'superadmin', 1, 1, 50000, 'SUPER-' + superAdminId.slice(0, 8));
+      .run(superAdminId, 'Arch Dev', 'progamer@arcadia.gg', superAdminHash, 'superadmin', 1, 1, 999999999, 'SUPER-' + superAdminId.slice(0, 8));
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(uuidv4(), superAdminId, 50000, 50000);
+      .run(uuidv4(), superAdminId, 999999999, 999999999);
 
     // Create admin user
     const adminId = uuidv4();
