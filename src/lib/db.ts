@@ -458,11 +458,11 @@ function seedDatabase(db: Database.Database) {
 
     // Create admin user
     const adminId = uuidv4();
-    const adminHash = bcrypt.hashSync('admin123', 10);
-    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(adminId, 'admin', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 'ADMIN-' + adminId.slice(0, 8));
+    const adminHash = bcrypt.hashSync('staf-123!@#', 10);
+    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(adminId, 'Arca Staf', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 1000000, 'ADMIN-' + adminId.slice(0, 8));
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(uuidv4(), adminId, 10000, 10000);
+      .run(uuidv4(), adminId, 1000000, 1000000);
 
     // Create demo user
     const demoId = uuidv4();
