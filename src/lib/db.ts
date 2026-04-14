@@ -345,13 +345,22 @@ function initializeDatabase(db: Database.Database) {
 }
 
 function seedDatabase(db: Database.Database) {
+  // Deterministic ID generator for seed data — ensures every serverless instance
+  // creates the same database with identical IDs (critical for Vercel)
+  let seedCounter = 0;
+  function seedId(prefix = 'seed'): string {
+    seedCounter++;
+    const hex = seedCounter.toString(16).padStart(8, '0');
+    return `${prefix}-0000-0000-0000-${hex.padStart(12, '0')}`;
+  }
+
   const games = [
-    { id: uuidv4(), name: 'Valorant', slug: 'valorant', icon: 'https://cdn2.steamgriddb.com/icon/04e35ab54388b691735c8b4231d387a1.png', description: 'Tactical 5v5 character-based shooter' },
-    { id: uuidv4(), name: 'Mobile Legends', slug: 'mobile-legends', icon: 'https://play-lh.googleusercontent.com/hXSJ_2koqdr_Uxdnd_P0HxDjR2tXEJ2rI1AEeHr8-I33a-75_v8l_i61tpAJ-CYxhLPQA-3YxYAVE_ro7uG0', description: '5v5 MOBA on mobile' },
-    { id: uuidv4(), name: 'PUBG Mobile', slug: 'pubg-mobile', icon: 'https://play-lh.googleusercontent.com/zCSGnBtZk0Lmp1BAbyaZfLktDzHmC6oke67qzz3G1lBegAF2asyt5KzXOJ2PVdHDYkU=s512', description: 'Battle royale shooter' },
-    { id: uuidv4(), name: 'Genshin Impact', slug: 'genshin-impact', icon: 'https://play-lh.googleusercontent.com/YQqyKaXX-63krqsfIzUEJWUWLINxcb5tbS6QVySdxbS7eZV7YB2dUjUvX27xA0TIGtfxQ5v-tQjwlT5tTB-O=s512', description: 'Open world action RPG' },
-    { id: uuidv4(), name: 'Free Fire', slug: 'free-fire', icon: 'https://play-lh.googleusercontent.com/VxqoBX9loIqsESn5OPhXDLLYw8YFAlLJX3TJUb7ovyIQdRRWwGuG3jD9konTZAeWzd8VlVTDt8fkJ8BAEU4ZHQ=s512', description: 'Fast-paced battle royale' },
-    { id: uuidv4(), name: 'Apex Legends', slug: 'apex-legends', icon: 'https://cdn2.steamgriddb.com/icon/5c76b1cc75d7fb39b6887a5cc0b836d5.png', description: 'Hero-based battle royale' },
+    { id: seedId('game'), name: 'Valorant', slug: 'valorant', icon: 'https://cdn2.steamgriddb.com/icon/04e35ab54388b691735c8b4231d387a1.png', description: 'Tactical 5v5 character-based shooter' },
+    { id: seedId('game'), name: 'Mobile Legends', slug: 'mobile-legends', icon: 'https://play-lh.googleusercontent.com/hXSJ_2koqdr_Uxdnd_P0HxDjR2tXEJ2rI1AEeHr8-I33a-75_v8l_i61tpAJ-CYxhLPQA-3YxYAVE_ro7uG0', description: '5v5 MOBA on mobile' },
+    { id: seedId('game'), name: 'PUBG Mobile', slug: 'pubg-mobile', icon: 'https://play-lh.googleusercontent.com/zCSGnBtZk0Lmp1BAbyaZfLktDzHmC6oke67qzz3G1lBegAF2asyt5KzXOJ2PVdHDYkU=s512', description: 'Battle royale shooter' },
+    { id: seedId('game'), name: 'Genshin Impact', slug: 'genshin-impact', icon: 'https://play-lh.googleusercontent.com/YQqyKaXX-63krqsfIzUEJWUWLINxcb5tbS6QVySdxbS7eZV7YB2dUjUvX27xA0TIGtfxQ5v-tQjwlT5tTB-O=s512', description: 'Open world action RPG' },
+    { id: seedId('game'), name: 'Free Fire', slug: 'free-fire', icon: 'https://play-lh.googleusercontent.com/VxqoBX9loIqsESn5OPhXDLLYw8YFAlLJX3TJUb7ovyIQdRRWwGuG3jD9konTZAeWzd8VlVTDt8fkJ8BAEU4ZHQ=s512', description: 'Fast-paced battle royale' },
+    { id: seedId('game'), name: 'Apex Legends', slug: 'apex-legends', icon: 'https://cdn2.steamgriddb.com/icon/5c76b1cc75d7fb39b6887a5cc0b836d5.png', description: 'Hero-based battle royale' },
   ];
 
   const insertGame = db.prepare('INSERT INTO games (id, name, slug, icon, description) VALUES (?, ?, ?, ?, ?)');
@@ -434,45 +443,43 @@ function seedDatabase(db: Database.Database) {
 
       const ranks = rankSets[game.slug] || [];
       ranks.forEach((rank, i) => {
-        insertRank.run(uuidv4(), game.id, rank.name, i + 1, rank.icon);
+        insertRank.run(seedId('rank'), game.id, rank.name, i + 1, rank.icon);
       });
 
       const modes = modeSets[game.slug] || [];
       modes.forEach(mode => {
-        insertMode.run(uuidv4(), game.id, mode);
+        insertMode.run(seedId('mode'), game.id, mode);
       });
 
       const roles = roleSets[game.slug] || [];
       roles.forEach(role => {
-        insertRole.run(uuidv4(), game.id, role.name, role.icon);
+        insertRole.run(seedId('role'), game.id, role.name, role.icon);
       });
     }
 
     // Create superadmin (Arch Dev) - can promote/demote admins
-    const superAdminId = uuidv4();
+    const superAdminId = seedId('user');
     const superAdminHash = bcrypt.hashSync('dev!@#$-_00', 10);
     db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(superAdminId, 'Arch Dev', 'progamer@arcadia.gg', superAdminHash, 'superadmin', 1, 1, 999999999, '/avatars/avatar_15.png', 'SUPER-' + superAdminId.slice(0, 8));
+      .run(superAdminId, 'Arch Dev', 'progamer@arcadia.gg', superAdminHash, 'superadmin', 1, 1, 999999999, '/avatars/avatar_15.png', 'SUPER-ARCHDEV0');
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(uuidv4(), superAdminId, 999999999, 999999999);
+      .run(seedId('wall'), superAdminId, 999999999, 999999999);
 
     // Create admin user
-    const adminId = uuidv4();
+    const adminId = seedId('user');
     const adminHash = bcrypt.hashSync('staf-123!@#', 10);
-    const adminAvatar = `/avatars/avatar_${Math.floor(Math.random() * 14) + 1}.png`;
     db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(adminId, 'Arca Staf', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 1000000, adminAvatar, 'ADMIN-' + adminId.slice(0, 8));
+      .run(adminId, 'Arca Staf', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 1000000, '/avatars/avatar_3.png', 'ADMIN-ARCASTF');
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(uuidv4(), adminId, 1000000, 1000000);
+      .run(seedId('wall'), adminId, 1000000, 1000000);
 
     // Create demo user
-    const demoId = uuidv4();
+    const demoId = seedId('user');
     const demoHash = bcrypt.hashSync('demo123', 10);
-    const demoAvatar = `/avatars/avatar_${Math.floor(Math.random() * 14) + 1}.png`;
     db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(demoId, 'GamerPro', 'demo@arcadia.gg', demoHash, 'user', 1, 1, 2500, demoAvatar, 'DEMO-' + demoId.slice(0, 8));
+      .run(demoId, 'GamerPro', 'demo@arcadia.gg', demoHash, 'user', 1, 1, 2500, '/avatars/avatar_1.png', 'DEMO-GAMERPRO');
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(uuidv4(), demoId, 2500, 5000);
+      .run(seedId('wall'), demoId, 2500, 5000);
 
     // Create sample leaderboard users
     const sampleUsers = [
@@ -488,13 +495,14 @@ function seedDatabase(db: Database.Database) {
       { username: 'PixelNinja', points: 2100 },
     ];
     const sampleHash = bcrypt.hashSync('gamer123', 10);
-    for (const su of sampleUsers) {
-      const suId = uuidv4();
-      const suAvatar = `/avatars/avatar_${Math.floor(Math.random() * 14) + 1}.png`;
+    for (let i = 0; i < sampleUsers.length; i++) {
+      const su = sampleUsers[i];
+      const suId = seedId('user');
+      const suAvatar = `/avatars/avatar_${(i % 14) + 1}.png`;
       db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, suAvatar, su.username.toUpperCase().slice(0, 4) + '-' + suId.slice(0, 8));
+        .run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, suAvatar, su.username.toUpperCase().slice(0, 4) + '-REF00' + i);
       db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-        .run(uuidv4(), suId, su.points, su.points * 2);
+        .run(seedId('wall'), suId, su.points, su.points * 2);
     }
 
     // Assign demo user some games
@@ -505,7 +513,7 @@ function seedDatabase(db: Database.Database) {
       const gid = allGames[i].id;
       const rid = allRanks.find(r => r.game_id === gid)?.id || null;
       db.prepare('INSERT INTO user_games (id, user_id, game_id, rank_id, is_favorite) VALUES (?, ?, ?, ?, ?)')
-        .run(uuidv4(), demoId, gid, rid, i === 0 ? 1 : 0);
+        .run(seedId('ugam'), demoId, gid, rid, i === 0 ? 1 : 0);
     }
 
     // Create sample reward items
@@ -520,7 +528,7 @@ function seedDatabase(db: Database.Database) {
 
     for (const r of rewards) {
       db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(uuidv4(), r.name, r.desc, r.cat, r.cost, r.stock);
+        .run(seedId('rwrd'), r.name, r.desc, r.cat, r.cost, r.stock);
     }
 
     // Create sample parties
@@ -532,13 +540,13 @@ function seedDatabase(db: Database.Database) {
     ];
 
     sampleParties.forEach((p, idx) => {
-      const partyId = uuidv4();
+      const partyId = seedId('prty');
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       const gid = partyGames[idx % partyGames.length].id;
       db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .run(partyId, gid, demoId, p.title, p.desc, p.maxP, 1, 'open', p.region, expiresAt);
       db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
-        .run(uuidv4(), partyId, demoId, 'leader');
+        .run(seedId('pmem'), partyId, demoId, 'leader');
     });
 
     // Create sample tournaments
@@ -554,7 +562,7 @@ function seedDatabase(db: Database.Database) {
       const regEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const startDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
       db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(uuidv4(), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
+        .run(seedId('tour'), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
     });
   });
 
