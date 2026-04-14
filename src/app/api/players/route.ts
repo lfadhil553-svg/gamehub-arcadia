@@ -9,7 +9,7 @@ export async function GET(req: Request) {
         if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
         const { searchParams } = new URL(req.url);
-        const search = searchParams.get('search') || '';
+        const search = searchParams.get('search') || searchParams.get('q') || '';
 
         if (search.length < 2) {
             return NextResponse.json({ success: false, error: 'Minimal 2 karakter untuk pencarian' }, { status: 400 });

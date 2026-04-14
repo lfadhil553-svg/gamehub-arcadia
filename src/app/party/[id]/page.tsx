@@ -4,7 +4,8 @@ import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
-import { motion } from 'framer-motion';
+import PlayerAvatar from '@/components/PlayerAvatar';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface PartyDetail {
     id: string; title: string; description: string; game_name: string; game_icon: string;
@@ -14,6 +15,8 @@ interface PartyDetail {
     chat: Array<{ id: string; user_id: string; username: string; avatar: string; message: string; created_at: string }>;
 }
 
+interface SearchPlayer { id: string; username: string; avatar: string; arcadia_points: number }
+
 export default function PartyDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const { user, loading: authLoading, addToast } = useApp();
@@ -22,6 +25,11 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
+    const [showInviteModal, setShowInviteModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<SearchPlayer[]>([]);
+    const [searching, setSearching] = useState(false);
+    const [kickingId, setKickingId] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
@@ -44,6 +52,7 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
     }, [user, id]);
 
     const isMember = party?.members.some(m => m.user_id === user?.id);
+    const isLeader = party?.creator_id === user?.id;
 
     const joinParty = async () => {
         const res = await fetch(`/api/parties/${id}`, { method: 'POST' });
@@ -57,6 +66,41 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
         const data = await res.json();
         if (data.success) { addToast(data.message, 'info'); fetchParty(); }
         else addToast(data.error, 'error');
+    };
+
+    const kickMember = async (targetUserId: string) => {
+        setKickingId(targetUserId);
+        const res = await fetch(`/api/parties/${id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'kick', target_user_id: targetUserId }),
+        });
+        const data = await res.json();
+        setKickingId(null);
+        if (data.success) { addToast(data.message, 'success'); fetchParty(); }
+        else addToast(data.error, 'error');
+    };
+
+    const invitePlayer = async (targetUserId: string) => {
+        const res = await fetch(`/api/parties/${id}`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'invite', target_user_id: targetUserId }),
+        });
+        const data = await res.json();
+        if (data.success) { addToast(data.message, 'success'); fetchParty(); setShowInviteModal(false); setSearchQuery(''); setSearchResults([]); }
+        else addToast(data.error, 'error');
+    };
+
+    const searchPlayers = async () => {
+        if (!searchQuery.trim()) return;
+        setSearching(true);
+        const res = await fetch(`/api/players?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        if (data.success) {
+            // Filter out current party members
+            const memberIds = party?.members.map(m => m.user_id) || [];
+            setSearchResults((data.data as SearchPlayer[]).filter(p => !memberIds.includes(p.id)));
+        }
+        setSearching(false);
     };
 
     const sendMessage = async (e: React.FormEvent) => {
@@ -98,30 +142,41 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
                                 <div className="flex justify-between"><span className="text-text-muted">Host</span><span>{party.creator_name}</span></div>
                             </div>
 
-                            <div className="mt-4">
+                            <div className="mt-4 space-y-2">
                                 {!isMember && party.status === 'open' && (
                                     <button onClick={joinParty} className="btn-primary w-full">🚀 Gabung Party</button>
                                 )}
-                                {isMember && party.creator_id !== user.id && (
+                                {isMember && !isLeader && (
                                     <button onClick={leaveParty} className="btn-danger w-full">🚪 Keluar Party</button>
+                                )}
+                                {isLeader && party.status === 'open' && (
+                                    <button onClick={() => setShowInviteModal(true)} className="btn-primary w-full">📨 Invite Player</button>
                                 )}
                             </div>
                         </motion.div>
 
                         {/* Members */}
                         <div className="card">
-                            <h3 className="font-bold mb-3">👥 Anggota ({party.members.length})</h3>
+                            <h3 className="font-bold mb-3">👥 Anggota ({party.members.length}/{party.max_players})</h3>
                             <div className="space-y-2">
                                 {party.members.map(member => (
                                     <div key={member.user_id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-light transition-colors">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs font-bold">
-                                            {member.username.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-medium">{member.username}</p>
-                                            <p className="text-xs text-text-muted">{member.role === 'leader' ? '👑 Leader' : 'Member'}</p>
+                                        <PlayerAvatar avatar={member.avatar} username={member.username} size="sm" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{member.username}</p>
+                                            <p className="text-xs text-text-muted">{member.role === 'leader' ? '👑 Leader' : '🎮 Member'}</p>
                                         </div>
                                         <span className="text-xs text-text-muted">⭐ {member.reputation_score?.toFixed(1)}</span>
+                                        {isLeader && member.user_id !== user.id && (
+                                            <button
+                                                onClick={() => kickMember(member.user_id)}
+                                                disabled={kickingId === member.user_id}
+                                                className="text-xs text-danger hover:bg-danger/10 px-2 py-1 rounded-lg transition-colors"
+                                                title="Kick dari party"
+                                            >
+                                                {kickingId === member.user_id ? '⏳' : '❌'}
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -141,9 +196,7 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
                                     </div>
                                 ) : party.chat.map(msg => (
                                     <div key={msg.id} className={`flex gap-2 ${msg.user_id === user.id ? 'flex-row-reverse' : ''}`}>
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-xs font-bold shrink-0">
-                                            {msg.username.charAt(0).toUpperCase()}
-                                        </div>
+                                        <PlayerAvatar avatar={msg.avatar} username={msg.username} size="sm" />
                                         <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.user_id === user.id ? 'bg-primary/20 text-text' : 'bg-surface-light'}`}>
                                             {msg.user_id !== user.id && <p className="text-xs font-medium text-primary mb-0.5">{msg.username}</p>}
                                             <p className="text-sm">{msg.message}</p>
@@ -170,6 +223,53 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
                     </div>
                 </div>
             ) : <p className="text-text-muted">Party tidak ditemukan</p>}
+
+            {/* Invite Modal */}
+            <AnimatePresence>
+                {showInviteModal && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                        onClick={() => setShowInviteModal(false)}>
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                            className="card !p-6 w-full max-w-md max-h-[70vh] flex flex-col"
+                            onClick={e => e.stopPropagation()}>
+                            <h3 className="text-lg font-bold mb-4">📨 Invite Player ke Party</h3>
+
+                            <div className="flex gap-2 mb-4">
+                                <input className="input flex-1" placeholder="Cari username..." value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && searchPlayers()} />
+                                <button onClick={searchPlayers} disabled={searching} className="btn-primary !px-4">
+                                    {searching ? '⏳' : '🔍'}
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto space-y-2">
+                                {searchResults.length > 0 ? searchResults.map(p => (
+                                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-light hover:bg-surface transition-colors">
+                                        <PlayerAvatar avatar={p.avatar} username={p.username} size="sm" />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-sm truncate">{p.username}</p>
+                                            <p className="text-xs text-text-muted">⭐ {p.arcadia_points.toLocaleString()} pts</p>
+                                        </div>
+                                        <button onClick={() => invitePlayer(p.id)} className="btn-primary text-xs !py-1.5 !px-3">
+                                            ➕ Invite
+                                        </button>
+                                    </div>
+                                )) : searchQuery ? (
+                                    <p className="text-center text-text-muted text-sm py-6">Tidak ada player ditemukan</p>
+                                ) : (
+                                    <p className="text-center text-text-muted text-sm py-6">Ketik username untuk mencari player</p>
+                                )}
+                            </div>
+
+                            <button onClick={() => setShowInviteModal(false)} className="mt-4 w-full py-2 text-sm text-text-muted hover:text-text transition-colors">
+                                Tutup
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </AppLayout>
     );
 }

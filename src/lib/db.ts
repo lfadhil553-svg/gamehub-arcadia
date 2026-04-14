@@ -531,22 +531,62 @@ function seedDatabase(db: Database.Database) {
         .run(seedId('rwrd'), r.name, r.desc, r.cat, r.cost, r.stock);
     }
 
-    // Create sample parties
-    const partyGames = allGames.slice(0, 3);
-    const sampleParties = [
-      { title: 'Push Rank Bareng Yuk!', desc: 'Butuh teman push rank, minimal Gold. Santai tapi serius.', maxP: 5, region: 'Jakarta' },
-      { title: 'Chill Gaming Night', desc: 'Main santai malam ini, welcome semua rank.', maxP: 4, region: 'Bandung' },
-      { title: 'Scrim Team Kompetitif', desc: 'Persiapan tournament, butuh player serius.', maxP: 5, region: 'Surabaya' },
+    // Create parties for EVERY game with appropriate team sizes and random members
+    const allUserIds = [demoId, superAdminId, adminId];
+    // Add sample user IDs (they were created with seedId('user') in order)
+    const sampleUserIds: string[] = [];
+    const allUsersFromDb = db.prepare('SELECT id FROM users WHERE id NOT IN (?, ?, ?)').all(demoId, superAdminId, adminId) as Array<{ id: string }>;
+    allUsersFromDb.forEach(u => sampleUserIds.push(u.id));
+
+    const gameParties: Array<{ gameIdx: number; title: string; desc: string; maxP: number; region: string; creatorIdx: number }> = [
+      // Valorant (5v5)
+      { gameIdx: 0, title: 'Push Rank Bareng Yuk!', desc: 'Butuh teman push rank, minimal Gold. Santai tapi serius.', maxP: 5, region: 'Jakarta', creatorIdx: 0 },
+      { gameIdx: 0, title: 'Valorant Competitive 5 Stack', desc: 'Cari squad ranked, mic wajib. Min Platinum.', maxP: 5, region: 'Surabaya', creatorIdx: 1 },
+      // Mobile Legends (5v5)
+      { gameIdx: 1, title: 'Chill Gaming Night', desc: 'Main santai malam ini, welcome semua rank.', maxP: 5, region: 'Bandung', creatorIdx: 2 },
+      { gameIdx: 1, title: 'ML Ranked Squad', desc: 'Butuh tank/support untuk push Mythic.', maxP: 5, region: 'Medan', creatorIdx: 3 },
+      // PUBG Mobile (4 squad)
+      { gameIdx: 2, title: 'PUBG Squad Erangel', desc: 'Main squad Erangel classic. Serius push rank.', maxP: 4, region: 'Jakarta', creatorIdx: 4 },
+      { gameIdx: 2, title: 'Chicken Dinner Tonight!', desc: 'Cari temen mabar santai, yang penting seru.', maxP: 4, region: 'Semarang', creatorIdx: 5 },
+      // Genshin Impact (4 co-op)
+      { gameIdx: 3, title: 'Domain Run AR 55+', desc: 'Butuh bantuan clear Crimson Witch domain.', maxP: 4, region: 'Jakarta', creatorIdx: 6 },
+      { gameIdx: 3, title: 'Spiral Abyss Help', desc: 'Co-op farming artifact, semua AR welcome.', maxP: 4, region: 'Bandung', creatorIdx: 7 },
+      // Free Fire (4 squad)
+      { gameIdx: 4, title: 'Free Fire Ranked Squad', desc: 'Push Heroic bareng, butuh 3 orang lagi!', maxP: 4, region: 'Surabaya', creatorIdx: 8 },
+      { gameIdx: 4, title: 'Clash Squad Pro', desc: 'Latihan clash squad buat tournament.', maxP: 4, region: 'Makassar', creatorIdx: 9 },
+      // Apex Legends (3 squad)
+      { gameIdx: 5, title: 'Apex Trio Ranked', desc: 'Cari squad ranked Apex. Min Diamond.', maxP: 3, region: 'Jakarta', creatorIdx: 0 },
+      { gameIdx: 5, title: 'Arenas Practice', desc: 'Latihan arenas mode 3v3. Casual welcome.', maxP: 3, region: 'Yogyakarta', creatorIdx: 1 },
     ];
 
-    sampleParties.forEach((p, idx) => {
+    // Pool of available members (exclude the creator for each party)
+    const memberPool = [...sampleUserIds, demoId, adminId];
+
+    gameParties.forEach((p, idx) => {
       const partyId = seedId('prty');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      const gid = partyGames[idx % partyGames.length].id;
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+      const gid = allGames[p.gameIdx].id;
+      const creatorId = memberPool[p.creatorIdx % memberPool.length];
+
+      // Determine how many members to fill (some full, some partially filled)
+      const membersToFill = idx % 3 === 0 ? p.maxP : Math.max(2, Math.floor(p.maxP * 0.6) + 1);
+      const currentPlayers = Math.min(membersToFill, p.maxP);
+      const status = currentPlayers >= p.maxP ? 'full' : 'open';
+
       db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(partyId, gid, demoId, p.title, p.desc, p.maxP, 1, 'open', p.region, expiresAt);
+        .run(partyId, gid, creatorId, p.title, p.desc, p.maxP, currentPlayers, status, p.region, expiresAt);
+
+      // Add creator as leader
       db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
-        .run(seedId('pmem'), partyId, demoId, 'leader');
+        .run(seedId('pmem'), partyId, creatorId, 'leader');
+
+      // Fill with random members (avoid duplicating the creator)
+      const availableMembers = memberPool.filter(id => id !== creatorId);
+      for (let m = 1; m < currentPlayers && m <= availableMembers.length; m++) {
+        const memberId = availableMembers[(idx * 3 + m) % availableMembers.length];
+        db.prepare('INSERT OR IGNORE INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
+          .run(seedId('pmem'), partyId, memberId, 'member');
+      }
     });
 
     // Create sample tournaments
@@ -557,7 +597,7 @@ function seedDatabase(db: Database.Database) {
     ];
 
     sampleTournaments.forEach((t, idx) => {
-      const gid = partyGames[idx % partyGames.length].id;
+      const gid = allGames[idx % allGames.length].id;
       const regStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
       const regEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       const startDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
