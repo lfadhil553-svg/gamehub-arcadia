@@ -6,8 +6,9 @@ import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, languageNames, Language } from '@/lib/i18n';
+import { formatPoints } from '@/lib/utils';
 
-const AVATAR_OPTIONS = Array.from({ length: 14 }, (_, i) => `/avatars/avatar_${i + 1}.png`);
+const AVATAR_OPTIONS = Array.from({ length: 15 }, (_, i) => `/avatars/avatar_${i + 1}.png`);
 
 interface ProfileData {
     user: { id: string; username: string; email: string; avatar: string; role: string; arcadia_points: number; reputation_score: number; referral_code: string; created_at: string };
@@ -130,7 +131,7 @@ export default function ProfilePage() {
                     {/* Stats */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
-                            { label: t('profile.points'), value: data.user.arcadia_points.toLocaleString(), icon: '⭐' },
+                            { label: t('profile.points'), value: formatPoints(data.user.arcadia_points), icon: '⭐' },
                             { label: t('profile.reputation'), value: data.stats.avg_rating.toFixed(1), icon: '💎' },
                             { label: t('profile.party_joined'), value: data.stats.parties_joined, icon: '🎮' },
                             { label: t('profile.win_rate'), value: `${data.stats.win_rate}%`, icon: '🏆' },

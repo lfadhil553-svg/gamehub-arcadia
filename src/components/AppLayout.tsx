@@ -5,6 +5,7 @@ import { useLanguage } from '@/lib/i18n';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPoints } from '@/lib/utils';
 
 const navKeys = [
     { labelKey: 'nav.dashboard', href: '/dashboard', icon: '🏠' },
@@ -123,7 +124,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium truncate">{user?.username}</p>
-                                    <p className="text-[10px] text-text-muted">⭐ {user?.arcadia_points} pts</p>
+                                    <p className="text-[10px] text-text-muted">⭐ {formatPoints(user?.arcadia_points || 0)} pts</p>
                                 </div>
                             </div>
                             <button onClick={logout} className="w-full text-left px-3 py-2 text-xs text-text-muted hover:text-danger rounded-lg hover:bg-danger/10 transition-colors">
@@ -176,7 +177,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center font-bold">{user?.username?.charAt(0).toUpperCase()}</div>
                         <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{user?.username}</p>
-                            <p className="text-xs text-text-muted">⭐ {user?.arcadia_points} pts</p>
+                            <p className="text-xs text-text-muted">⭐ {formatPoints(user?.arcadia_points || 0)} pts</p>
                         </div>
                     </div>
                     <button onClick={logout} className="w-full text-left px-3 py-2 text-sm text-text-muted hover:text-danger rounded-lg hover:bg-danger/10 transition-colors">🚪 Logout</button>
@@ -201,7 +202,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border text-sm">
                                 <span>⭐</span>
-                                <span className="font-semibold text-primary">{user?.arcadia_points || 0}</span>
+                                <span className="font-semibold text-primary">{formatPoints(user?.arcadia_points || 0)}</span>
                             </div>
                             <div className="lg:hidden w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-sm font-bold">
                                 {user?.username?.charAt(0).toUpperCase()}

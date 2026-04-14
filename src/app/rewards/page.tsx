@@ -5,6 +5,7 @@ import { useLanguage } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPoints } from '@/lib/utils';
 
 interface Wallet { balance: number; lifetime_earned: number; lifetime_spent: number }
 interface Transaction { id: string; type: string; amount: number; description: string; created_at: string }
@@ -69,10 +70,10 @@ export default function RewardsPage() {
                             <h2 className="text-lg font-bold">💎 Arcadia Wallet</h2>
                             <span className="badge badge-primary">Active</span>
                         </div>
-                        <p className="text-4xl font-extrabold gradient-text mb-2">{wallet?.balance?.toLocaleString() || 0}</p>
+                        <p className="text-4xl font-extrabold gradient-text mb-2">{formatPoints(wallet?.balance || 0)}</p>
                         <p className="text-text-muted text-sm">Arcadia Points</p>
                         <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-border">
-                            <div><p className="text-sm font-bold text-success">+{wallet?.lifetime_earned?.toLocaleString() || 0}</p><p className="text-xs text-text-muted">Total Earned</p></div>
+                            <div><p className="text-sm font-bold text-success">+{formatPoints(wallet?.lifetime_earned || 0)}</p><p className="text-xs text-text-muted">Total Earned</p></div>
                             <div><p className="text-sm font-bold text-danger">-{wallet?.lifetime_spent?.toLocaleString() || 0}</p><p className="text-xs text-text-muted">Total Spent</p></div>
                         </div>
                     </motion.div>

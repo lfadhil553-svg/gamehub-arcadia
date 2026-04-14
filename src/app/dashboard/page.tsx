@@ -8,6 +8,7 @@ import GameIcon from '@/components/GameIcon';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { formatPoints } from '@/lib/utils';
 
 interface DashboardData {
     user: { id: string; username: string; avatar: string; arcadia_points: number; reputation_score: number; role: string };
@@ -56,7 +57,7 @@ export default function DashboardPage() {
                     {/* Stats */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {[
-                            { label: t('dash.points'), value: data.stats.total_points.toLocaleString(), icon: '⭐', color: 'primary' },
+                            { label: t('dash.points'), value: formatPoints(data.stats.total_points), icon: '⭐', color: 'primary' },
                             { label: t('dash.party_joined'), value: data.stats.parties_joined, icon: '🎮', color: 'secondary' },
                             { label: t('dash.tournament'), value: data.stats.tournaments_played, icon: '🏆', color: 'accent' },
                             { label: t('dash.reputation'), value: data.user.reputation_score.toFixed(1), icon: '💎', color: 'success' },
@@ -158,7 +159,7 @@ export default function DashboardPage() {
                                     </span>
                                     <PlayerAvatar avatar={entry.avatar} username={entry.username} size="sm" />
                                     <span className="font-medium flex-1">{entry.username}</span>
-                                    <span className="font-bold text-primary">⭐ {entry.arcadia_points.toLocaleString()}</span>
+                                    <span className="font-bold text-primary">⭐ {formatPoints(entry.arcadia_points)}</span>
                                 </div>
                             ))}
                         </div>

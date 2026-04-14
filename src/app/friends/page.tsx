@@ -7,6 +7,7 @@ import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatPoints } from '@/lib/utils';
 
 interface PlayerGame {
     game_name: string; game_icon: string; rank_name: string; rank_icon: string;
@@ -139,7 +140,7 @@ export default function FriendsPage() {
                                                         {f.role === 'superadmin' ? '👑' : f.role}
                                                     </span>
                                                 </div>
-                                                <p className="text-xs text-text-muted">⭐ {f.arcadia_points} pts</p>
+                                                <p className="text-xs text-text-muted">⭐ {formatPoints(f.arcadia_points)} pts</p>
                                             </div>
                                             <button onClick={() => removeFriend(f.friendship_id!)} className="text-xs text-danger hover:underline shrink-0">{t('friends.remove')}</button>
                                         </motion.div>
@@ -168,7 +169,7 @@ export default function FriendsPage() {
                                                 <PlayerAvatar avatar={r.avatar} username={r.username} size="md" />
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-bold">{r.username}</p>
-                                                    <p className="text-xs text-text-muted">⭐ {r.arcadia_points} pts</p>
+                                                    <p className="text-xs text-text-muted">⭐ {formatPoints(r.arcadia_points)} pts</p>
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <button onClick={() => respondRequest(r.friendship_id!, 'accept')} className="btn-primary text-xs !py-1 !px-3">{t('friends.accept')}</button>
@@ -228,7 +229,7 @@ export default function FriendsPage() {
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-3 text-sm text-text-muted">
-                                                        <span>⭐ {p.arcadia_points.toLocaleString()} pts</span>
+                                                        <span>⭐ {formatPoints(p.arcadia_points)} pts</span>
                                                         {p.games && p.games.length > 0 && <span>🎮 {p.games.length} game</span>}
                                                         {p.stats && <span>🏆 {p.stats.win_rate}% win</span>}
                                                     </div>
@@ -260,7 +261,7 @@ export default function FriendsPage() {
                                                             {p.stats && (
                                                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                                     {[
-                                                                        { label: 'Points', value: p.arcadia_points.toLocaleString(), icon: '⭐' },
+                                                                        { label: 'Points', value: formatPoints(p.arcadia_points), icon: '⭐' },
                                                                         { label: 'Win Rate', value: `${p.stats.win_rate}%`, icon: '🏆' },
                                                                         { label: 'Party', value: p.stats.parties_joined, icon: '🎮' },
                                                                         { label: 'Rating', value: p.stats.avg_rating.toFixed(1), icon: '💎' },
