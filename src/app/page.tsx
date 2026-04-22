@@ -29,61 +29,67 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--color-background)' }}>
 
-      {/* ═══════════════ NAVBAR ═══════════════ */}
-      <nav className="sticky top-0 z-50 border-b border-white/5" style={{ background: 'rgba(10,12,20,0.85)', backdropFilter: 'blur(16px)' }}>
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      {/* ═══════════ NAVBAR ═══════════ */}
+      <nav className="sticky top-0 z-50 border-b border-white/5"
+        style={{ background: 'rgba(11,15,26,0.88)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' }}>
+        <div style={{ maxWidth: '920px', margin: '0 auto', padding: '0.875rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div className="flex items-center gap-3">
             <img src="/logo.jpeg" alt="ARCADIA" className="w-10 h-10 rounded-xl object-cover" />
             <div>
               <h1 className="text-lg font-bold gradient-text leading-tight">ARCADIA</h1>
-              <p className="text-[10px] text-text-muted leading-tight">Gaming Social Hub</p>
+              <p style={{ fontSize: '10px', color: 'var(--color-text-muted)', lineHeight: 1.2 }}>Gaming Social Hub</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-text-muted hover:text-text transition-colors px-4 py-2">Login</Link>
-            <Link href="/register" className="btn-primary text-sm !py-2 !px-5">Daftar Gratis</Link>
+            <Link href="/login" style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-text-muted)', padding: '8px 16px', transition: 'color 0.2s' }}
+              className="hover:!text-text">Login</Link>
+            <Link href="/register" className="btn-primary" style={{ fontSize: '14px', padding: '8px 20px' }}>Daftar Gratis</Link>
           </div>
         </div>
       </nav>
 
-      {/* ═══════════════ HERO ═══════════════ */}
+      {/* ═══════════ HERO ═══════════ */}
       <header className="relative overflow-hidden">
-        {/* Ambient light effects */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/8 rounded-full blur-[150px]" />
-          <div className="absolute top-32 left-1/4 w-[300px] h-[300px] bg-secondary/6 rounded-full blur-[120px]" />
-          <div className="absolute top-48 right-1/4 w-[250px] h-[250px] bg-accent/5 rounded-full blur-[100px]" />
+        {/* Ambient glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div style={{ position: 'absolute', top: '-20%', left: '50%', transform: 'translateX(-50%)', width: '600px', height: '400px', background: 'rgba(59,130,246,0.06)', borderRadius: '50%', filter: 'blur(120px)' }} />
+          <div style={{ position: 'absolute', top: '30%', left: '20%', width: '250px', height: '250px', background: 'rgba(139,92,246,0.05)', borderRadius: '50%', filter: 'blur(100px)' }} />
+          <div style={{ position: 'absolute', top: '40%', right: '20%', width: '200px', height: '200px', background: 'rgba(6,182,212,0.04)', borderRadius: '50%', filter: 'blur(80px)' }} />
         </div>
 
-        <div className="relative z-10 max-w-3xl mx-auto px-6 pt-20 pb-24 lg:pt-28 lg:pb-32 text-center">
+        <div className="relative z-10" style={{ maxWidth: '680px', margin: '0 auto', padding: '5rem 1.5rem 4rem', textAlign: 'center' }}>
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-8"
-              style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--primary)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '6px 16px', borderRadius: '999px', fontSize: '12px', fontWeight: 500,
+              background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: 'var(--color-primary)',
+              marginBottom: '2rem'
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary)', animation: 'pulse-glow 2s ease-in-out infinite' }} />
               Platform Komunitas Gamer
             </div>
 
             {/* Headline */}
-            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.1] mb-6 tracking-tight">
+            <h2 style={{ fontSize: 'clamp(2.25rem, 5vw, 3.5rem)', fontWeight: 800, lineHeight: 1.1, marginBottom: '1.25rem', letterSpacing: '-0.02em' }}>
               Level Up Your<br />
               <span className="gradient-text">Gaming Experience</span>
             </h2>
 
             {/* Subheadline */}
-            <p className="text-base lg:text-lg text-text-muted max-w-lg mx-auto mb-10 leading-relaxed">
+            <p style={{ fontSize: 'clamp(0.95rem, 2vw, 1.1rem)', color: 'var(--color-text-muted)', maxWidth: '480px', margin: '0 auto 2.5rem', lineHeight: 1.7 }}>
               Cari teman mabar, ikuti tournament seru, kumpulkan Arcadia Points,
               dan dapatkan reward menarik. Semua dalam satu platform.
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link href="/register" className="btn-primary text-base !py-3.5 !px-8 w-full sm:w-auto">
+            {/* CTA */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px' }}>
+              <Link href="/register" className="btn-primary" style={{ fontSize: '15px', padding: '14px 32px' }}>
                 🚀 Mulai Sekarang — Gratis
               </Link>
-              <Link href="/login" className="btn-secondary text-base !py-3.5 !px-8 w-full sm:w-auto">
+              <Link href="/login" className="btn-secondary" style={{ fontSize: '15px', padding: '14px 32px' }}>
                 Login
               </Link>
             </div>
@@ -91,87 +97,106 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* ═══════════════ STATS BAR ═══════════════ */}
-      <section className="border-y border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
-        <div className="max-w-3xl mx-auto px-6 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+      {/* ═══════════ STATS ═══════════ */}
+      <section className="border-y border-white/5" style={{ background: 'rgba(255,255,255,0.015)' }}>
+        <div style={{ maxWidth: '680px', margin: '0 auto', padding: '2rem 1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', textAlign: 'center' }}>
             {stats.map((s, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
-                <p className="text-2xl lg:text-3xl font-extrabold gradient-text">{s.value}</p>
-                <p className="text-xs text-text-muted mt-1">{s.label}</p>
+              <motion.div key={i} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
+                <p className="gradient-text" style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 800 }}>{s.value}</p>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>{s.label}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════════ FEATURES ═══════════════ */}
-      <section className="max-w-4xl mx-auto px-6 py-20 w-full">
-        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
-          <h3 className="text-2xl lg:text-3xl font-bold mb-3">
+      {/* ═══════════ FEATURES ═══════════ */}
+      <section style={{ maxWidth: '920px', margin: '0 auto', padding: '5rem 1.5rem', width: '100%' }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h3 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 700, marginBottom: '0.75rem' }}>
             Fitur <span className="gradient-text">Unggulan</span>
           </h3>
-          <p className="text-text-muted text-sm max-w-md mx-auto">
+          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', maxWidth: '400px', margin: '0 auto' }}>
             Semua yang kamu butuhkan untuk pengalaman gaming yang lebih seru
           </p>
         </motion.div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
           {features.map((f, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.08 }}
-              className="group rounded-2xl p-5 border border-white/5 hover:border-primary/20 transition-all duration-300"
-              style={{ background: 'rgba(255,255,255,0.02)' }}>
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl mb-4"
-                style={{ background: 'rgba(99,102,241,0.1)' }}>
+              style={{
+                padding: '1.5rem', borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgba(255,255,255,0.02)',
+                transition: 'all 0.3s ease',
+                textAlign: 'center',
+              }}
+              className="hover:border-primary/20">
+              <div style={{
+                width: '48px', height: '48px', borderRadius: '12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '22px', background: 'rgba(59,130,246,0.1)',
+                margin: '0 auto 1rem',
+              }}>
                 {f.icon}
               </div>
-              <h4 className="font-bold mb-1.5 group-hover:text-primary transition-colors">{f.title}</h4>
-              <p className="text-text-muted text-sm leading-relaxed">{f.desc}</p>
+              <h4 style={{ fontWeight: 700, marginBottom: '0.5rem', fontSize: '15px' }}>{f.title}</h4>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-muted)', lineHeight: 1.6 }}>{f.desc}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* ═══════════════ GAMES ═══════════════ */}
-      <section className="max-w-4xl mx-auto px-6 py-16 w-full">
-        <h3 className="text-2xl lg:text-3xl font-bold text-center mb-10">
+      {/* ═══════════ GAMES ═══════════ */}
+      <section style={{ maxWidth: '920px', margin: '0 auto', padding: '3rem 1.5rem 5rem', width: '100%' }}>
+        <h3 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 700, textAlign: 'center', marginBottom: '2.5rem' }}>
           Game <span className="gradient-text">Populer</span>
         </h3>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px' }}>
           {games.map((game, i) => (
             <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
-              className="group text-center rounded-2xl p-4 border border-white/5 hover:border-primary/20 cursor-pointer transition-all duration-300"
-              style={{ background: 'rgba(255,255,255,0.02)' }}>
-              <div className="flex justify-center mb-2.5">
+              style={{
+                textAlign: 'center', padding: '1.25rem 0.75rem', borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgba(255,255,255,0.02)',
+                cursor: 'pointer', transition: 'all 0.3s ease',
+              }}
+              className="hover:border-primary/20">
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.625rem' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={game.icon} alt={game.name} className="w-11 h-11 rounded-xl object-cover group-hover:scale-110 transition-transform duration-300" loading="lazy" />
+                <img src={game.icon} alt={game.name}
+                  style={{ width: '44px', height: '44px', borderRadius: '12px', objectFit: 'cover', transition: 'transform 0.3s' }}
+                  loading="lazy" />
               </div>
-              <p className="font-medium text-xs">{game.name}</p>
+              <p style={{ fontWeight: 600, fontSize: '12px' }}>{game.name}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* ═══════════════ CTA ═══════════════ */}
-      <section className="max-w-3xl mx-auto px-6 py-16 w-full">
+      {/* ═══════════ CTA ═══════════ */}
+      <section style={{ maxWidth: '680px', margin: '0 auto', padding: '0 1.5rem 5rem', width: '100%' }}>
         <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-          className="text-center rounded-2xl p-10 lg:p-14 border border-primary/15"
-          style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06))' }}>
-          <h3 className="text-2xl lg:text-3xl font-bold mb-3">Siap Level Up? 🎮</h3>
-          <p className="text-text-muted text-sm mb-8 max-w-md mx-auto leading-relaxed">
+          style={{
+            textAlign: 'center', borderRadius: '20px', padding: '3rem 2rem',
+            border: '1px solid rgba(59,130,246,0.15)',
+            background: 'linear-gradient(135deg, rgba(59,130,246,0.06), rgba(139,92,246,0.04))',
+          }}>
+          <h3 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', fontWeight: 700, marginBottom: '0.75rem' }}>Siap Level Up? 🎮</h3>
+          <p style={{ fontSize: '14px', color: 'var(--color-text-muted)', marginBottom: '2rem', maxWidth: '400px', margin: '0 auto 2rem', lineHeight: 1.7 }}>
             Bergabung dengan ribuan gamer lainnya di ARCADIA. Daftar gratis dan dapatkan 100 Arcadia Points!
           </p>
-          <Link href="/register" className="btn-primary text-base !py-3.5 !px-10">Daftar Sekarang — Gratis!</Link>
+          <Link href="/register" className="btn-primary" style={{ fontSize: '15px', padding: '14px 40px' }}>Daftar Sekarang — Gratis!</Link>
         </motion.div>
       </section>
 
-      {/* ═══════════════ FOOTER ═══════════════ */}
-      <footer className="border-t border-white/5 py-8 text-center">
-        <div className="max-w-4xl mx-auto px-6">
-          <p className="text-text-muted text-xs">© 2024 ARCADIA. All rights reserved.</p>
-        </div>
+      {/* ═══════════ FOOTER ═══════════ */}
+      <footer className="border-t border-white/5" style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>© 2024 ARCADIA. All rights reserved.</p>
       </footer>
     </div>
   );
