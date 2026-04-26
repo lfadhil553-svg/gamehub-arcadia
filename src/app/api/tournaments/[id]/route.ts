@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const db = getDb();
+        const db = await getDbAsync();
 
         const tournament = db.prepare(`SELECT t.*, g.name as game_name, g.icon as game_icon, u.username as organizer_name
       FROM tournaments t JOIN games g ON t.game_id = g.id JOIN users u ON t.organizer_id = u.id
@@ -33,7 +33,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
         const { id } = await params;
-        const db = getDb();
+        const db = await getDbAsync();
 
         const tournament = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(id) as Record<string, unknown>;
         if (!tournament) return NextResponse.json({ success: false, error: 'Tournament tidak ditemukan' }, { status: 404 });

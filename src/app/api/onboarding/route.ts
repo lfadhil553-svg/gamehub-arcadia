@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Pilih minimal 1 game' }, { status: 400 });
         }
 
-        const db = getDb();
+        const db = await getDbAsync();
         const insert = db.prepare('INSERT OR REPLACE INTO user_games (id, user_id, game_id, rank_id, role_id, is_favorite) VALUES (?, ?, ?, ?, ?, ?)');
 
         for (const g of games) {

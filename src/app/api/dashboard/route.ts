@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function GET() {
@@ -7,7 +7,7 @@ export async function GET() {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
-        const db = getDb();
+        const db = await getDbAsync();
 
         // User's favorite games
         const favoriteGames = db.prepare(`SELECT ug.*, g.name as game_name, g.icon as game_icon

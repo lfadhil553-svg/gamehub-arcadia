@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 // GET - Search players by username with full profile data
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: 'Minimal 2 karakter untuk pencarian' }, { status: 400 });
         }
 
-        const db = getDb();
+        const db = await getDbAsync();
         const players = db.prepare(`
             SELECT u.id, u.username, u.avatar, u.role, u.arcadia_points, u.reputation_score, u.created_at,
                    CASE 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -9,7 +9,7 @@ export async function GET(req: Request) {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-        const db = getDb();
+        const db = await getDbAsync();
         const { searchParams } = new URL(req.url);
         const tab = searchParams.get('tab') || 'friends';
 
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         if (!target_user_id) return NextResponse.json({ success: false, error: 'Target user required' }, { status: 400 });
         if (target_user_id === user.id) return NextResponse.json({ success: false, error: 'Tidak bisa add diri sendiri' }, { status: 400 });
 
-        const db = getDb();
+        const db = await getDbAsync();
 
         // Check if target exists
         const target = db.prepare('SELECT id, username FROM users WHERE id = ?').get(target_user_id);
@@ -98,7 +98,7 @@ export async function PATCH(req: Request) {
         const { friendship_id, action } = await req.json();
         if (!friendship_id || !action) return NextResponse.json({ success: false, error: 'Missing data' }, { status: 400 });
 
-        const db = getDb();
+        const db = await getDbAsync();
         const friendship = db.prepare('SELECT * FROM friendships WHERE id = ? AND addressee_id = ? AND status = ?')
             .get(friendship_id, user.id, 'pending') as { id: string } | undefined;
 
@@ -128,7 +128,7 @@ export async function DELETE(req: Request) {
         const friendshipId = searchParams.get('id');
         if (!friendshipId) return NextResponse.json({ success: false, error: 'Friendship ID required' }, { status: 400 });
 
-        const db = getDb();
+        const db = await getDbAsync();
         db.prepare('DELETE FROM friendships WHERE id = ? AND (requester_id = ? OR addressee_id = ?)')
             .run(friendshipId, user.id, user.id);
 

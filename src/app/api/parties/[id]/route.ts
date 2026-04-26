@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const db = getDb();
+        const db = await getDbAsync();
 
         const party = db.prepare(`SELECT p.*, g.name as game_name, g.icon as game_icon, u.username as creator_name, u.avatar as creator_avatar
       FROM parties p
@@ -43,7 +43,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
         const { id } = await params;
-        const db = getDb();
+        const db = await getDbAsync();
 
         const party = db.prepare('SELECT * FROM parties WHERE id = ?').get(id) as Record<string, unknown> | undefined;
         if (!party) return NextResponse.json({ success: false, error: 'Party tidak ditemukan' }, { status: 404 });
@@ -73,7 +73,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
         const { id } = await params;
-        const db = getDb();
+        const db = await getDbAsync();
 
         db.prepare('DELETE FROM party_members WHERE party_id = ? AND user_id = ?').run(id, user.id);
         db.prepare('UPDATE parties SET current_players = MAX(current_players - 1, 0), status = "open" WHERE id = ?').run(id);
@@ -91,7 +91,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
         const { id } = await params;
-        const db = getDb();
+        const db = await getDbAsync();
         const body = await req.json();
         const { action, target_user_id } = body;
 

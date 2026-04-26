@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
             return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 });
         }
 
-        const db = getDb();
+        const db = await getDbAsync();
         const today = new Date().toISOString().split('T')[0];
 
         const totalUsers = db.prepare('SELECT COUNT(*) as c FROM users').get() as { c: number };
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         }
 
         const { action, target_id, data } = await req.json();
-        const db = getDb();
+        const db = await getDbAsync();
 
         switch (action) {
             case 'ban_user':

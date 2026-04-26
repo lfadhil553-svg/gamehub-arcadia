@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 
 export async function POST() {
     try {
@@ -8,7 +8,7 @@ export async function POST() {
         const refreshToken = cookieStore.get('refresh_token')?.value;
 
         if (refreshToken) {
-            const db = getDb();
+            const db = await getDbAsync();
             db.prepare('DELETE FROM sessions WHERE refresh_token = ?').run(refreshToken);
         }
 

@@ -1,29 +1,212 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import fs from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
 
-// Database path: Railway /data (persistent), Vercel /tmp (ephemeral), or local cwd
+// ─────────────────────────────────────────────────────────
+// Compatibility wrapper: makes sql.js behave like better-sqlite3
+// so ALL existing API routes work without changes.
+// ─────────────────────────────────────────────────────────
+
+interface PreparedStatement {
+  run(...params: unknown[]): { changes: number; lastInsertRowid: number };
+  get(...params: unknown[]): Record<string, unknown> | undefined;
+  all(...params: unknown[]): Record<string, unknown>[];
+}
+
+interface CompatDb {
+  prepare(sql: string): PreparedStatement;
+  exec(sql: string): void;
+  pragma(pragma: string): unknown;
+  transaction<T>(fn: () => T): () => T;
+  close(): void;
+  _raw: SqlJsDatabase; // access to underlying sql.js db for export
+}
+
+function wrapStmt(sqlDb: SqlJsDatabase, sql: string): PreparedStatement {
+  return {
+    run(...params: unknown[]) {
+      try {
+        const stmt = sqlDb.prepare(sql);
+        stmt.bind(params as unknown[]);
+        stmt.step();
+        stmt.free();
+      } catch (e) {
+        // INSERT OR IGNORE may fail on constraint — check if that's ok
+        if (sql.includes('OR IGNORE')) return { changes: 0, lastInsertRowid: 0 };
+        throw e;
+      }
+      const r = sqlDb.exec('SELECT changes() as c');
+      const changes = r.length > 0 ? (r[0].values[0][0] as number) : 0;
+      return { changes, lastInsertRowid: 0 };
+    },
+    get(...params: unknown[]): Record<string, unknown> | undefined {
+      const stmt = sqlDb.prepare(sql);
+      stmt.bind(params as unknown[]);
+      if (stmt.step()) {
+        const cols = stmt.getColumnNames();
+        const vals = stmt.get();
+        const row: Record<string, unknown> = {};
+        cols.forEach((col, i) => { row[col] = vals[i]; });
+        stmt.free();
+        return row;
+      }
+      stmt.free();
+      return undefined;
+    },
+    all(...params: unknown[]): Record<string, unknown>[] {
+      const stmt = sqlDb.prepare(sql);
+      stmt.bind(params as unknown[]);
+      const rows: Record<string, unknown>[] = [];
+      while (stmt.step()) {
+        const cols = stmt.getColumnNames();
+        const vals = stmt.get();
+        const row: Record<string, unknown> = {};
+        cols.forEach((col, i) => { row[col] = vals[i]; });
+        rows.push(row);
+      }
+      stmt.free();
+      return rows;
+    },
+  };
+}
+
+function createCompatDb(sqlDb: SqlJsDatabase): CompatDb {
+  return {
+    _raw: sqlDb,
+    prepare(sql: string) { return wrapStmt(sqlDb, sql); },
+    exec(sql: string) { sqlDb.run(sql); },
+    pragma(p: string) {
+      try { sqlDb.run(`PRAGMA ${p}`); } catch { /* ignore */ }
+      return undefined;
+    },
+    transaction<T>(fn: () => T): () => T {
+      return () => {
+        sqlDb.run('BEGIN');
+        try {
+          const result = fn();
+          sqlDb.run('COMMIT');
+          return result;
+        } catch (e) {
+          sqlDb.run('ROLLBACK');
+          throw e;
+        }
+      };
+    },
+    close() { sqlDb.close(); },
+  };
+}
+
+// ─────────────────────────────────────────────────────────
+// Database lifecycle
+// ─────────────────────────────────────────────────────────
+
 const DATA_DIR = process.env.NODE_ENV === 'production'
   ? (fs.existsSync('/data') ? '/data' : '/tmp')
   : process.cwd();
 const DB_PATH = path.join(DATA_DIR, 'gamehub.db');
-let db: Database.Database | null = null;
 
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
+let db: CompatDb | null = null;
+let initPromise: Promise<void> | null = null;
+
+// Eagerly start WASM init at import time
+initPromise = doInit();
+
+async function doInit(): Promise<void> {
+  if (db) return;
+  try {
+    // Load WASM binary directly to avoid path resolution issues in bundled environments
+    let wasmBinary: ArrayBuffer | undefined;
+    try {
+      const wasmPaths = [
+        path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm'),
+        path.join(process.cwd(), 'public', 'sql-wasm.wasm'),
+        '/var/task/node_modules/sql.js/dist/sql-wasm.wasm', // Vercel serverless
+      ];
+      for (const wp of wasmPaths) {
+        if (fs.existsSync(wp)) {
+          wasmBinary = fs.readFileSync(wp).buffer as ArrayBuffer;
+          break;
+        }
+      }
+    } catch { /* will fall back to default loading */ }
+    const SQL = await initSqlJs({ wasmBinary });
+    let sqlDb: SqlJsDatabase;
+
+    // Try loading from disk (for persistence within a warm Vercel instance)
+    try {
+      if (fs.existsSync(DB_PATH)) {
+        const buffer = fs.readFileSync(DB_PATH);
+        if (buffer.length > 0) {
+          sqlDb = new SQL.Database(buffer);
+          // Quick sanity check
+          sqlDb.exec('SELECT 1');
+        } else {
+          sqlDb = new SQL.Database();
+        }
+      } else {
+        sqlDb = new SQL.Database();
+      }
+    } catch {
+      // Corrupted file — start fresh
+      sqlDb = new SQL.Database();
+    }
+
+    db = createCompatDb(sqlDb);
     db.pragma('foreign_keys = ON');
     initializeDatabase(db);
+
+    // Persist to disk
+    saveToDisk();
+  } catch (e) {
+    console.error('[ARCADIA DB] Init failed:', e);
+    throw e;
   }
+}
+
+function saveToDisk() {
+  if (!db) return;
+  try {
+    const data = db._raw.export();
+    fs.writeFileSync(DB_PATH, Buffer.from(data));
+  } catch { /* read-only fs, ignore */ }
+}
+
+/**
+ * Main entry point — called by all API routes.
+ * Returns the database synchronously if already initialized,
+ * otherwise awaits the init promise.
+ */
+export function getDb(): CompatDb {
+  if (db) return db;
+  // If not yet initialized, we need to wait. But this function is sync.
+  // In practice, the WASM loads in ~50ms and the first API call happens after at least 100ms,
+  // so db should be ready. If not, throw a helpful error.
+  throw new Error('Database is still initializing. Please retry.');
+}
+
+/**
+ * Async version of getDb — guaranteed to return after init is complete.
+ * Use this in API handlers for maximum reliability.
+ */
+export async function getDbAsync(): Promise<CompatDb> {
+  if (db) return db;
+  if (initPromise) await initPromise;
+  if (db) return db;
+  // If init failed, retry once
+  initPromise = doInit();
+  await initPromise;
+  if (!db) throw new Error('Database initialization failed');
   return db;
 }
 
-function initializeDatabase(db: Database.Database) {
+// ─────────────────────────────────────────────────────────
+// Schema & seed
+// ─────────────────────────────────────────────────────────
+
+function initializeDatabase(db: CompatDb) {
   db.exec(`
-    -- Users
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT UNIQUE NOT NULL,
@@ -42,8 +225,6 @@ function initializeDatabase(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
-
-    -- Games
     CREATE TABLE IF NOT EXISTS games (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -54,8 +235,6 @@ function initializeDatabase(db: Database.Database) {
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
     );
-
-    -- Ranks
     CREATE TABLE IF NOT EXISTS ranks (
       id TEXT PRIMARY KEY,
       game_id TEXT NOT NULL,
@@ -64,16 +243,12 @@ function initializeDatabase(db: Database.Database) {
       icon TEXT DEFAULT '',
       FOREIGN KEY (game_id) REFERENCES games(id)
     );
-
-    -- Game Modes
     CREATE TABLE IF NOT EXISTS game_modes (
       id TEXT PRIMARY KEY,
       game_id TEXT NOT NULL,
       name TEXT NOT NULL,
       FOREIGN KEY (game_id) REFERENCES games(id)
     );
-
-    -- Game Roles
     CREATE TABLE IF NOT EXISTS game_roles (
       id TEXT PRIMARY KEY,
       game_id TEXT NOT NULL,
@@ -81,8 +256,6 @@ function initializeDatabase(db: Database.Database) {
       icon TEXT DEFAULT '',
       FOREIGN KEY (game_id) REFERENCES games(id)
     );
-
-    -- User Games
     CREATE TABLE IF NOT EXISTS user_games (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -94,8 +267,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (game_id) REFERENCES games(id),
       UNIQUE(user_id, game_id)
     );
-
-    -- Parties
     CREATE TABLE IF NOT EXISTS parties (
       id TEXT PRIMARY KEY,
       game_id TEXT NOT NULL,
@@ -114,8 +285,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (game_id) REFERENCES games(id),
       FOREIGN KEY (creator_id) REFERENCES users(id)
     );
-
-    -- Party Members
     CREATE TABLE IF NOT EXISTS party_members (
       id TEXT PRIMARY KEY,
       party_id TEXT NOT NULL,
@@ -126,8 +295,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (user_id) REFERENCES users(id),
       UNIQUE(party_id, user_id)
     );
-
-    -- Party Chat
     CREATE TABLE IF NOT EXISTS party_chat (
       id TEXT PRIMARY KEY,
       party_id TEXT NOT NULL,
@@ -137,8 +304,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (party_id) REFERENCES parties(id),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
-
-    -- User Ratings
     CREATE TABLE IF NOT EXISTS user_ratings (
       id TEXT PRIMARY KEY,
       rater_id TEXT NOT NULL,
@@ -150,8 +315,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (rater_id) REFERENCES users(id),
       FOREIGN KEY (rated_id) REFERENCES users(id)
     );
-
-    -- Tournaments
     CREATE TABLE IF NOT EXISTS tournaments (
       id TEXT PRIMARY KEY,
       game_id TEXT NOT NULL,
@@ -175,8 +338,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (game_id) REFERENCES games(id),
       FOREIGN KEY (organizer_id) REFERENCES users(id)
     );
-
-    -- Tournament Participants
     CREATE TABLE IF NOT EXISTS tournament_participants (
       id TEXT PRIMARY KEY,
       tournament_id TEXT NOT NULL,
@@ -189,8 +350,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (user_id) REFERENCES users(id),
       UNIQUE(tournament_id, user_id)
     );
-
-    -- Teams
     CREATE TABLE IF NOT EXISTS teams (
       id TEXT PRIMARY KEY,
       tournament_id TEXT NOT NULL,
@@ -200,8 +359,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (tournament_id) REFERENCES tournaments(id),
       FOREIGN KEY (captain_id) REFERENCES users(id)
     );
-
-    -- Matches
     CREATE TABLE IF NOT EXISTS matches (
       id TEXT PRIMARY KEY,
       tournament_id TEXT NOT NULL,
@@ -217,8 +374,6 @@ function initializeDatabase(db: Database.Database) {
       completed_at TEXT,
       FOREIGN KEY (tournament_id) REFERENCES tournaments(id)
     );
-
-    -- Wallets
     CREATE TABLE IF NOT EXISTS wallets (
       id TEXT PRIMARY KEY,
       user_id TEXT UNIQUE NOT NULL,
@@ -227,8 +382,6 @@ function initializeDatabase(db: Database.Database) {
       lifetime_spent INTEGER DEFAULT 0,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
-
-    -- Wallet Transactions
     CREATE TABLE IF NOT EXISTS wallet_transactions (
       id TEXT PRIMARY KEY,
       wallet_id TEXT NOT NULL,
@@ -240,8 +393,6 @@ function initializeDatabase(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (wallet_id) REFERENCES wallets(id)
     );
-
-    -- Reward Items
     CREATE TABLE IF NOT EXISTS reward_items (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -254,8 +405,6 @@ function initializeDatabase(db: Database.Database) {
       expires_at TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
-
-    -- Redeem History
     CREATE TABLE IF NOT EXISTS redeem_history (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -267,8 +416,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (reward_id) REFERENCES reward_items(id)
     );
-
-    -- Referral Logs
     CREATE TABLE IF NOT EXISTS referral_logs (
       id TEXT PRIMARY KEY,
       referrer_id TEXT NOT NULL,
@@ -278,8 +425,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (referrer_id) REFERENCES users(id),
       FOREIGN KEY (referred_id) REFERENCES users(id)
     );
-
-    -- Sessions (refresh tokens)
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -288,8 +433,6 @@ function initializeDatabase(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
-
-    -- Daily Login Tracking
     CREATE TABLE IF NOT EXISTS daily_logins (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -298,8 +441,6 @@ function initializeDatabase(db: Database.Database) {
       FOREIGN KEY (user_id) REFERENCES users(id),
       UNIQUE(user_id, login_date)
     );
-
-    -- Friendships
     CREATE TABLE IF NOT EXISTS friendships (
       id TEXT PRIMARY KEY,
       requester_id TEXT NOT NULL,
@@ -312,7 +453,6 @@ function initializeDatabase(db: Database.Database) {
       UNIQUE(requester_id, addressee_id)
     );
 
-    -- Indexes
     CREATE INDEX IF NOT EXISTS idx_parties_game ON parties(game_id);
     CREATE INDEX IF NOT EXISTS idx_parties_status ON parties(status);
     CREATE INDEX IF NOT EXISTS idx_parties_creator ON parties(creator_id);
@@ -327,26 +467,17 @@ function initializeDatabase(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id);
   `);
 
-  // Migrations: add columns that may be missing on older databases
-  const userColumns = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
-  const columnNames = userColumns.map(c => c.name);
-  if (!columnNames.includes('avatar')) {
-    db.exec("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT '/avatars/default.png'");
-  }
-  if (!columnNames.includes('updated_at')) {
-    db.exec("ALTER TABLE users ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))");
-  }
-
-  // Seed data if empty
   const gameCount = db.prepare('SELECT COUNT(*) as count FROM games').get() as { count: number };
   if (gameCount.count === 0) {
     seedDatabase(db);
   }
 }
 
-function seedDatabase(db: Database.Database) {
-  // Deterministic ID generator for seed data — ensures every serverless instance
-  // creates the same database with identical IDs (critical for Vercel)
+// ─────────────────────────────────────────────────────────
+// Seed data (deterministic IDs)
+// ─────────────────────────────────────────────────────────
+
+function seedDatabase(db: CompatDb) {
   let seedCounter = 0;
   function seedId(prefix = 'seed'): string {
     seedCounter++;
@@ -363,43 +494,14 @@ function seedDatabase(db: Database.Database) {
     { id: seedId('game'), name: 'Apex Legends', slug: 'apex-legends', icon: 'https://cdn2.steamgriddb.com/icon/5c76b1cc75d7fb39b6887a5cc0b836d5.png', description: 'Hero-based battle royale' },
   ];
 
-  const insertGame = db.prepare('INSERT INTO games (id, name, slug, icon, description) VALUES (?, ?, ?, ?, ?)');
-  const insertRank = db.prepare('INSERT INTO ranks (id, game_id, name, tier, icon) VALUES (?, ?, ?, ?, ?)');
-  const insertMode = db.prepare('INSERT INTO game_modes (id, game_id, name) VALUES (?, ?, ?)');
-  const insertRole = db.prepare('INSERT INTO game_roles (id, game_id, name, icon) VALUES (?, ?, ?, ?)');
-
   const rankSets: Record<string, Array<{ name: string; icon: string }>> = {
-    'valorant': [
-      { name: 'Iron', icon: '🟤' }, { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' },
-      { name: 'Gold', icon: '🥇' }, { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' },
-      { name: 'Ascendant', icon: '🌟' }, { name: 'Immortal', icon: '👑' }, { name: 'Radiant', icon: '⭐' }
-    ],
-    'mobile-legends': [
-      { name: 'Warrior', icon: '⚔️' }, { name: 'Elite', icon: '🛡️' }, { name: 'Master', icon: '🏅' },
-      { name: 'Grandmaster', icon: '🎖️' }, { name: 'Epic', icon: '💜' }, { name: 'Legend', icon: '🏆' },
-      { name: 'Mythic', icon: '👑' }, { name: 'Mythical Glory', icon: '⭐' }
-    ],
-    'pubg-mobile': [
-      { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
-      { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Crown', icon: '👑' },
-      { name: 'Ace', icon: '🌟' }, { name: 'Conqueror', icon: '⭐' }
-    ],
-    'genshin-impact': [
-      { name: 'AR 1-15', icon: '🌱' }, { name: 'AR 16-25', icon: '🌿' }, { name: 'AR 26-35', icon: '🌳' },
-      { name: 'AR 36-45', icon: '🏔️' }, { name: 'AR 46-55', icon: '⛰️' }, { name: 'AR 56+', icon: '🏯' }
-    ],
-    'free-fire': [
-      { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
-      { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Heroic', icon: '👑' },
-      { name: 'Grandmaster', icon: '⭐' }
-    ],
-    'apex-legends': [
-      { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' },
-      { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Master', icon: '👑' },
-      { name: 'Predator', icon: '⭐' }
-    ],
+    'valorant': [{ name: 'Iron', icon: '🟤' }, { name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' }, { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Ascendant', icon: '🌟' }, { name: 'Immortal', icon: '👑' }, { name: 'Radiant', icon: '⭐' }],
+    'mobile-legends': [{ name: 'Warrior', icon: '⚔️' }, { name: 'Elite', icon: '🛡️' }, { name: 'Master', icon: '🏅' }, { name: 'Grandmaster', icon: '🎖️' }, { name: 'Epic', icon: '💜' }, { name: 'Legend', icon: '🏆' }, { name: 'Mythic', icon: '👑' }, { name: 'Mythical Glory', icon: '⭐' }],
+    'pubg-mobile': [{ name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' }, { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Crown', icon: '👑' }, { name: 'Ace', icon: '🌟' }, { name: 'Conqueror', icon: '⭐' }],
+    'genshin-impact': [{ name: 'AR 1-15', icon: '🌱' }, { name: 'AR 16-25', icon: '🌿' }, { name: 'AR 26-35', icon: '🌳' }, { name: 'AR 36-45', icon: '🏔️' }, { name: 'AR 46-55', icon: '⛰️' }, { name: 'AR 56+', icon: '🏯' }],
+    'free-fire': [{ name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' }, { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Heroic', icon: '👑' }, { name: 'Grandmaster', icon: '⭐' }],
+    'apex-legends': [{ name: 'Bronze', icon: '🥉' }, { name: 'Silver', icon: '🥈' }, { name: 'Gold', icon: '🥇' }, { name: 'Platinum', icon: '💎' }, { name: 'Diamond', icon: '💠' }, { name: 'Master', icon: '👑' }, { name: 'Predator', icon: '⭐' }],
   };
-
   const modeSets: Record<string, string[]> = {
     'valorant': ['Competitive', 'Unrated', 'Spike Rush', 'Deathmatch'],
     'mobile-legends': ['Ranked', 'Classic', 'Brawl', 'Custom'],
@@ -408,203 +510,122 @@ function seedDatabase(db: Database.Database) {
     'free-fire': ['Battle Royale', 'Clash Squad', 'Ranked'],
     'apex-legends': ['Battle Royale', 'Ranked', 'Arenas', 'Control'],
   };
-
   const roleSets: Record<string, Array<{ name: string; icon: string }>> = {
-    'valorant': [
-      { name: 'Duelist', icon: '⚔️' }, { name: 'Controller', icon: '🌫️' },
-      { name: 'Initiator', icon: '🎯' }, { name: 'Sentinel', icon: '🛡️' }
-    ],
-    'mobile-legends': [
-      { name: 'Tank', icon: '🛡️' }, { name: 'Fighter', icon: '⚔️' },
-      { name: 'Assassin', icon: '🗡️' }, { name: 'Marksman', icon: '🏹' },
-      { name: 'Mage', icon: '🔮' }, { name: 'Support', icon: '💚' }
-    ],
-    'pubg-mobile': [
-      { name: 'Sniper', icon: '🎯' }, { name: 'Rusher', icon: '⚡' },
-      { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }
-    ],
-    'genshin-impact': [
-      { name: 'DPS', icon: '⚔️' }, { name: 'Sub-DPS', icon: '🗡️' },
-      { name: 'Support', icon: '💚' }, { name: 'Healer', icon: '❤️' }
-    ],
-    'free-fire': [
-      { name: 'Rusher', icon: '⚡' }, { name: 'Sniper', icon: '🎯' },
-      { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }
-    ],
-    'apex-legends': [
-      { name: 'Assault', icon: '⚔️' }, { name: 'Recon', icon: '🔍' },
-      { name: 'Support', icon: '💚' }, { name: 'Defense', icon: '🛡️' }
-    ],
+    'valorant': [{ name: 'Duelist', icon: '⚔️' }, { name: 'Controller', icon: '🌫️' }, { name: 'Initiator', icon: '🎯' }, { name: 'Sentinel', icon: '🛡️' }],
+    'mobile-legends': [{ name: 'Tank', icon: '🛡️' }, { name: 'Fighter', icon: '⚔️' }, { name: 'Assassin', icon: '🗡️' }, { name: 'Marksman', icon: '🏹' }, { name: 'Mage', icon: '🔮' }, { name: 'Support', icon: '💚' }],
+    'pubg-mobile': [{ name: 'Sniper', icon: '🎯' }, { name: 'Rusher', icon: '⚡' }, { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }],
+    'genshin-impact': [{ name: 'DPS', icon: '⚔️' }, { name: 'Sub-DPS', icon: '🗡️' }, { name: 'Support', icon: '💚' }, { name: 'Healer', icon: '❤️' }],
+    'free-fire': [{ name: 'Rusher', icon: '⚡' }, { name: 'Sniper', icon: '🎯' }, { name: 'Support', icon: '💚' }, { name: 'IGL', icon: '🧠' }],
+    'apex-legends': [{ name: 'Assault', icon: '⚔️' }, { name: 'Recon', icon: '🔍' }, { name: 'Support', icon: '💚' }, { name: 'Defense', icon: '🛡️' }],
   };
 
-  const transaction = db.transaction(() => {
-    for (const game of games) {
-      insertGame.run(game.id, game.name, game.slug, game.icon, game.description);
+  for (const game of games) {
+    db.prepare('INSERT INTO games (id, name, slug, icon, description) VALUES (?, ?, ?, ?, ?)').run(game.id, game.name, game.slug, game.icon, game.description);
+    (rankSets[game.slug] || []).forEach((rank, i) => { db.prepare('INSERT INTO ranks (id, game_id, name, tier, icon) VALUES (?, ?, ?, ?, ?)').run(seedId('rank'), game.id, rank.name, i + 1, rank.icon); });
+    (modeSets[game.slug] || []).forEach(mode => { db.prepare('INSERT INTO game_modes (id, game_id, name) VALUES (?, ?, ?)').run(seedId('mode'), game.id, mode); });
+    (roleSets[game.slug] || []).forEach(role => { db.prepare('INSERT INTO game_roles (id, game_id, name, icon) VALUES (?, ?, ?, ?)').run(seedId('role'), game.id, role.name, role.icon); });
+  }
 
-      const ranks = rankSets[game.slug] || [];
-      ranks.forEach((rank, i) => {
-        insertRank.run(seedId('rank'), game.id, rank.name, i + 1, rank.icon);
-      });
+  // Users
+  const superAdminId = seedId('user');
+  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(superAdminId, 'Arch Dev', 'progamer@arcadia.gg', bcrypt.hashSync('dev!@#$-_00', 10), 'superadmin', 1, 1, 999999999, '/avatars/avatar_15.png', 'SUPER-ARCHDEV0');
+  db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), superAdminId, 999999999, 999999999);
 
-      const modes = modeSets[game.slug] || [];
-      modes.forEach(mode => {
-        insertMode.run(seedId('mode'), game.id, mode);
-      });
+  const adminId = seedId('user');
+  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(adminId, 'Arca Staf', 'admin@arcadia.gg', bcrypt.hashSync('staf-123!@#', 10), 'admin', 1, 1, 1000000, '/avatars/avatar_3.png', 'ADMIN-ARCASTF');
+  db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), adminId, 1000000, 1000000);
 
-      const roles = roleSets[game.slug] || [];
-      roles.forEach(role => {
-        insertRole.run(seedId('role'), game.id, role.name, role.icon);
-      });
+  const demoId = seedId('user');
+  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(demoId, 'GamerPro', 'demo@arcadia.gg', bcrypt.hashSync('demo123', 10), 'user', 1, 1, 2500, '/avatars/avatar_1.png', 'DEMO-GAMERPRO');
+  db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), demoId, 2500, 5000);
+
+  const sampleUsers = [
+    { username: 'ShadowKnight', points: 8500 }, { username: 'NeonBlade', points: 7200 },
+    { username: 'PhantomX', points: 6800 }, { username: 'StarFire', points: 5900 },
+    { username: 'CyberWolf', points: 5100 }, { username: 'ThunderGod', points: 4500 },
+    { username: 'AceHunter', points: 3800 }, { username: 'BlazeMaster', points: 3200 },
+    { username: 'IronClad', points: 2800 }, { username: 'PixelNinja', points: 2100 },
+  ];
+  const sampleHash = bcrypt.hashSync('gamer123', 10);
+  for (let i = 0; i < sampleUsers.length; i++) {
+    const su = sampleUsers[i]; const suId = seedId('user');
+    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, `/avatars/avatar_${(i % 14) + 1}.png`, su.username.toUpperCase().slice(0, 4) + '-REF00' + i);
+    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), suId, su.points, su.points * 2);
+  }
+
+  // Assign demo user games
+  const allGames = db.prepare('SELECT id FROM games').all() as Array<{ id: string }>;
+  const allRanks = db.prepare('SELECT id, game_id FROM ranks WHERE tier >= 3 AND tier <= 5').all() as Array<{ id: string; game_id: string }>;
+  for (let i = 0; i < Math.min(3, allGames.length); i++) {
+    const gid = allGames[i].id;
+    const rid = allRanks.find(r => r.game_id === gid)?.id || null;
+    db.prepare('INSERT INTO user_games (id, user_id, game_id, rank_id, is_favorite) VALUES (?, ?, ?, ?, ?)').run(seedId('ugam'), demoId, gid, rid, i === 0 ? 1 : 0);
+  }
+
+  // Rewards
+  const rewards = [
+    { name: 'Diamond Top-Up 100', desc: 'Voucher top up 100 diamonds untuk game favoritmu', cat: 'voucher', cost: 500, stock: 50 },
+    { name: 'Gaming Cafe 2 Hours', desc: 'Voucher bermain 2 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 300, stock: 100 },
+    { name: 'Arcadia T-Shirt', desc: 'Kaos eksklusif ARCADIA limited edition', cat: 'merchandise', cost: 2000, stock: 20 },
+    { name: 'Tournament VIP Pass', desc: 'Akses premium untuk 1 tournament pilihan', cat: 'tournament_entry', cost: 1000, stock: 30 },
+    { name: 'Steam Wallet $5', desc: 'Steam wallet code senilai $5 USD', cat: 'voucher', cost: 1500, stock: 25 },
+    { name: 'Gaming Mousepad XL', desc: 'Mousepad gaming XL dengan desain ARCADIA', cat: 'merchandise', cost: 1200, stock: 15 },
+  ];
+  for (const r of rewards) {
+    db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)').run(seedId('rwrd'), r.name, r.desc, r.cat, r.cost, r.stock);
+  }
+
+  // Parties
+  const sampleUserIds: string[] = [];
+  (db.prepare('SELECT id FROM users WHERE id NOT IN (?, ?, ?)').all(demoId, superAdminId, adminId) as Array<{ id: string }>).forEach(u => sampleUserIds.push(u.id));
+  const memberPool = [...sampleUserIds, demoId, adminId];
+
+  const gameParties = [
+    { gameIdx: 0, title: 'Push Rank Bareng Yuk!', desc: 'Butuh teman push rank, minimal Gold.', maxP: 5, region: 'Jakarta', creatorIdx: 0 },
+    { gameIdx: 0, title: 'Valorant Competitive 5 Stack', desc: 'Cari squad ranked, mic wajib.', maxP: 5, region: 'Surabaya', creatorIdx: 1 },
+    { gameIdx: 1, title: 'Chill Gaming Night', desc: 'Main santai malam ini, welcome semua rank.', maxP: 5, region: 'Bandung', creatorIdx: 2 },
+    { gameIdx: 1, title: 'ML Ranked Squad', desc: 'Butuh tank/support untuk push Mythic.', maxP: 5, region: 'Medan', creatorIdx: 3 },
+    { gameIdx: 2, title: 'PUBG Squad Erangel', desc: 'Main squad Erangel classic.', maxP: 4, region: 'Jakarta', creatorIdx: 4 },
+    { gameIdx: 2, title: 'Chicken Dinner Tonight!', desc: 'Cari temen mabar santai.', maxP: 4, region: 'Semarang', creatorIdx: 5 },
+    { gameIdx: 3, title: 'Domain Run AR 55+', desc: 'Butuh bantuan clear domain.', maxP: 4, region: 'Jakarta', creatorIdx: 6 },
+    { gameIdx: 3, title: 'Spiral Abyss Help', desc: 'Co-op farming artifact.', maxP: 4, region: 'Bandung', creatorIdx: 7 },
+    { gameIdx: 4, title: 'Free Fire Ranked Squad', desc: 'Push Heroic bareng!', maxP: 4, region: 'Surabaya', creatorIdx: 8 },
+    { gameIdx: 4, title: 'Clash Squad Pro', desc: 'Latihan clash squad.', maxP: 4, region: 'Makassar', creatorIdx: 9 },
+    { gameIdx: 5, title: 'Apex Trio Ranked', desc: 'Cari squad ranked Apex.', maxP: 3, region: 'Jakarta', creatorIdx: 0 },
+    { gameIdx: 5, title: 'Arenas Practice', desc: 'Latihan arenas mode 3v3.', maxP: 3, region: 'Yogyakarta', creatorIdx: 1 },
+  ];
+
+  gameParties.forEach((p, idx) => {
+    const partyId = seedId('prty');
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const gid = allGames[p.gameIdx].id;
+    const creatorId = memberPool[p.creatorIdx % memberPool.length];
+    const membersToFill = idx % 3 === 0 ? p.maxP : Math.max(2, Math.floor(p.maxP * 0.6) + 1);
+    const currentPlayers = Math.min(membersToFill, p.maxP);
+    const status = currentPlayers >= p.maxP ? 'full' : 'open';
+
+    db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(partyId, gid, creatorId, p.title, p.desc, p.maxP, currentPlayers, status, p.region, expiresAt);
+    db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)').run(seedId('pmem'), partyId, creatorId, 'leader');
+
+    const available = memberPool.filter(id => id !== creatorId);
+    for (let m = 1; m < currentPlayers && m <= available.length; m++) {
+      const mid = available[(idx * 3 + m) % available.length];
+      try { db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)').run(seedId('pmem'), partyId, mid, 'member'); } catch { /* dup */ }
     }
-
-    // Create superadmin (Arch Dev) - can promote/demote admins
-    const superAdminId = seedId('user');
-    const superAdminHash = bcrypt.hashSync('dev!@#$-_00', 10);
-    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(superAdminId, 'Arch Dev', 'progamer@arcadia.gg', superAdminHash, 'superadmin', 1, 1, 999999999, '/avatars/avatar_15.png', 'SUPER-ARCHDEV0');
-    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(seedId('wall'), superAdminId, 999999999, 999999999);
-
-    // Create admin user
-    const adminId = seedId('user');
-    const adminHash = bcrypt.hashSync('staf-123!@#', 10);
-    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(adminId, 'Arca Staf', 'admin@arcadia.gg', adminHash, 'admin', 1, 1, 1000000, '/avatars/avatar_3.png', 'ADMIN-ARCASTF');
-    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(seedId('wall'), adminId, 1000000, 1000000);
-
-    // Create demo user
-    const demoId = seedId('user');
-    const demoHash = bcrypt.hashSync('demo123', 10);
-    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(demoId, 'GamerPro', 'demo@arcadia.gg', demoHash, 'user', 1, 1, 2500, '/avatars/avatar_1.png', 'DEMO-GAMERPRO');
-    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-      .run(seedId('wall'), demoId, 2500, 5000);
-
-    // Create sample leaderboard users
-    const sampleUsers = [
-      { username: 'ShadowKnight', points: 8500 },
-      { username: 'NeonBlade', points: 7200 },
-      { username: 'PhantomX', points: 6800 },
-      { username: 'StarFire', points: 5900 },
-      { username: 'CyberWolf', points: 5100 },
-      { username: 'ThunderGod', points: 4500 },
-      { username: 'AceHunter', points: 3800 },
-      { username: 'BlazeMaster', points: 3200 },
-      { username: 'IronClad', points: 2800 },
-      { username: 'PixelNinja', points: 2100 },
-    ];
-    const sampleHash = bcrypt.hashSync('gamer123', 10);
-    for (let i = 0; i < sampleUsers.length; i++) {
-      const su = sampleUsers[i];
-      const suId = seedId('user');
-      const suAvatar = `/avatars/avatar_${(i % 14) + 1}.png`;
-      db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, suAvatar, su.username.toUpperCase().slice(0, 4) + '-REF00' + i);
-      db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)')
-        .run(seedId('wall'), suId, su.points, su.points * 2);
-    }
-
-    // Assign demo user some games
-    const allGames = db.prepare('SELECT id FROM games').all() as Array<{ id: string }>;
-    const allRanks = db.prepare('SELECT id, game_id FROM ranks WHERE tier >= 3 AND tier <= 5').all() as Array<{ id: string; game_id: string }>;
-
-    for (let i = 0; i < Math.min(3, allGames.length); i++) {
-      const gid = allGames[i].id;
-      const rid = allRanks.find(r => r.game_id === gid)?.id || null;
-      db.prepare('INSERT INTO user_games (id, user_id, game_id, rank_id, is_favorite) VALUES (?, ?, ?, ?, ?)')
-        .run(seedId('ugam'), demoId, gid, rid, i === 0 ? 1 : 0);
-    }
-
-    // Create sample reward items
-    const rewards = [
-      { name: 'Diamond Top-Up 100', desc: 'Voucher top up 100 diamonds untuk game favoritmu', cat: 'voucher', cost: 500, stock: 50 },
-      { name: 'Gaming Cafe 2 Hours', desc: 'Voucher bermain 2 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 300, stock: 100 },
-      { name: 'Arcadia T-Shirt', desc: 'Kaos eksklusif ARCADIA limited edition', cat: 'merchandise', cost: 2000, stock: 20 },
-      { name: 'Tournament VIP Pass', desc: 'Akses premium untuk 1 tournament pilihan', cat: 'tournament_entry', cost: 1000, stock: 30 },
-      { name: 'Steam Wallet $5', desc: 'Steam wallet code senilai $5 USD', cat: 'voucher', cost: 1500, stock: 25 },
-      { name: 'Gaming Mousepad XL', desc: 'Mousepad gaming XL dengan desain ARCADIA', cat: 'merchandise', cost: 1200, stock: 15 },
-    ];
-
-    for (const r of rewards) {
-      db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(seedId('rwrd'), r.name, r.desc, r.cat, r.cost, r.stock);
-    }
-
-    // Create parties for EVERY game with appropriate team sizes and random members
-    const allUserIds = [demoId, superAdminId, adminId];
-    // Add sample user IDs (they were created with seedId('user') in order)
-    const sampleUserIds: string[] = [];
-    const allUsersFromDb = db.prepare('SELECT id FROM users WHERE id NOT IN (?, ?, ?)').all(demoId, superAdminId, adminId) as Array<{ id: string }>;
-    allUsersFromDb.forEach(u => sampleUserIds.push(u.id));
-
-    const gameParties: Array<{ gameIdx: number; title: string; desc: string; maxP: number; region: string; creatorIdx: number }> = [
-      // Valorant (5v5)
-      { gameIdx: 0, title: 'Push Rank Bareng Yuk!', desc: 'Butuh teman push rank, minimal Gold. Santai tapi serius.', maxP: 5, region: 'Jakarta', creatorIdx: 0 },
-      { gameIdx: 0, title: 'Valorant Competitive 5 Stack', desc: 'Cari squad ranked, mic wajib. Min Platinum.', maxP: 5, region: 'Surabaya', creatorIdx: 1 },
-      // Mobile Legends (5v5)
-      { gameIdx: 1, title: 'Chill Gaming Night', desc: 'Main santai malam ini, welcome semua rank.', maxP: 5, region: 'Bandung', creatorIdx: 2 },
-      { gameIdx: 1, title: 'ML Ranked Squad', desc: 'Butuh tank/support untuk push Mythic.', maxP: 5, region: 'Medan', creatorIdx: 3 },
-      // PUBG Mobile (4 squad)
-      { gameIdx: 2, title: 'PUBG Squad Erangel', desc: 'Main squad Erangel classic. Serius push rank.', maxP: 4, region: 'Jakarta', creatorIdx: 4 },
-      { gameIdx: 2, title: 'Chicken Dinner Tonight!', desc: 'Cari temen mabar santai, yang penting seru.', maxP: 4, region: 'Semarang', creatorIdx: 5 },
-      // Genshin Impact (4 co-op)
-      { gameIdx: 3, title: 'Domain Run AR 55+', desc: 'Butuh bantuan clear Crimson Witch domain.', maxP: 4, region: 'Jakarta', creatorIdx: 6 },
-      { gameIdx: 3, title: 'Spiral Abyss Help', desc: 'Co-op farming artifact, semua AR welcome.', maxP: 4, region: 'Bandung', creatorIdx: 7 },
-      // Free Fire (4 squad)
-      { gameIdx: 4, title: 'Free Fire Ranked Squad', desc: 'Push Heroic bareng, butuh 3 orang lagi!', maxP: 4, region: 'Surabaya', creatorIdx: 8 },
-      { gameIdx: 4, title: 'Clash Squad Pro', desc: 'Latihan clash squad buat tournament.', maxP: 4, region: 'Makassar', creatorIdx: 9 },
-      // Apex Legends (3 squad)
-      { gameIdx: 5, title: 'Apex Trio Ranked', desc: 'Cari squad ranked Apex. Min Diamond.', maxP: 3, region: 'Jakarta', creatorIdx: 0 },
-      { gameIdx: 5, title: 'Arenas Practice', desc: 'Latihan arenas mode 3v3. Casual welcome.', maxP: 3, region: 'Yogyakarta', creatorIdx: 1 },
-    ];
-
-    // Pool of available members (exclude the creator for each party)
-    const memberPool = [...sampleUserIds, demoId, adminId];
-
-    gameParties.forEach((p, idx) => {
-      const partyId = seedId('prty');
-      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-      const gid = allGames[p.gameIdx].id;
-      const creatorId = memberPool[p.creatorIdx % memberPool.length];
-
-      // Determine how many members to fill (some full, some partially filled)
-      const membersToFill = idx % 3 === 0 ? p.maxP : Math.max(2, Math.floor(p.maxP * 0.6) + 1);
-      const currentPlayers = Math.min(membersToFill, p.maxP);
-      const status = currentPlayers >= p.maxP ? 'full' : 'open';
-
-      db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(partyId, gid, creatorId, p.title, p.desc, p.maxP, currentPlayers, status, p.region, expiresAt);
-
-      // Add creator as leader
-      db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
-        .run(seedId('pmem'), partyId, creatorId, 'leader');
-
-      // Fill with random members (avoid duplicating the creator)
-      const availableMembers = memberPool.filter(id => id !== creatorId);
-      for (let m = 1; m < currentPlayers && m <= availableMembers.length; m++) {
-        const memberId = availableMembers[(idx * 3 + m) % availableMembers.length];
-        db.prepare('INSERT OR IGNORE INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
-          .run(seedId('pmem'), partyId, memberId, 'member');
-      }
-    });
-
-    // Create sample tournaments
-    const sampleTournaments = [
-      { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi ARCADIA season pertama!', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
-      { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend.', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
-      { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League nasional.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points + Voucher', fee: 500, status: 'ongoing' },
-    ];
-
-    sampleTournaments.forEach((t, idx) => {
-      const gid = allGames[idx % allGames.length].id;
-      const regStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-      const regEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const startDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-      db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(seedId('tour'), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
-    });
   });
 
-  transaction();
+  // Tournaments
+  [
+    { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi ARCADIA!', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
+    { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend.', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
+    { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points', fee: 500, status: 'ongoing' },
+  ].forEach((t, idx) => {
+    const gid = allGames[idx % allGames.length].id;
+    const regStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const regEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const startDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(seedId('tour'), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
+  });
 }
+
+export { uuidv4 };

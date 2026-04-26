@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(req: Request) {
     try {
-        const db = getDb();
+        const db = await getDbAsync();
         const { searchParams } = new URL(req.url);
         const gameId = searchParams.get('game_id');
         const status = searchParams.get('status');
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Game dan nama tournament wajib diisi' }, { status: 400 });
         }
 
-        const db = getDb();
+        const db = await getDbAsync();
         const tournamentId = uuidv4();
 
         db.prepare(`INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date, rules)

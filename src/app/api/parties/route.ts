@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(req: Request) {
     try {
-        const db = getDb();
+        const db = await getDbAsync();
         const { searchParams } = new URL(req.url);
         const gameId = searchParams.get('game_id');
         const status = searchParams.get('status') || 'open';
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: false, error: 'Game dan judul wajib diisi' }, { status: 400 });
         }
 
-        const db = getDb();
+        const db = await getDbAsync();
         const partyId = uuidv4();
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 

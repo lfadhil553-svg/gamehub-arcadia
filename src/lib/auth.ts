@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
-import { getDb } from './db';
+import { getDb, getDbAsync } from './db';
 import { v4 as uuidv4 } from 'uuid';
 import type { User } from '@/types';
 
@@ -53,7 +53,7 @@ export async function getCurrentUser(): Promise<User | null> {
         const payload = verifyAccessToken(token);
         if (!payload) return null;
 
-        const db = getDb();
+        const db = await getDbAsync();
         const user = db.prepare('SELECT * FROM users WHERE id = ? AND is_banned = 0').get(payload.userId) as User | undefined;
         return user || null;
     } catch {
@@ -62,12 +62,16 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 export function getUserById(userId: string): User | null {
-    const db = getDb();
-    return db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | null;
+    try {
+        const db = getDb();
+        return db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | null;
+    } catch {
+        return null;
+    }
 }
 
 export async function loginUser(email: string, password: string): Promise<{ user: User; accessToken: string; refreshToken: string } | { error: string }> {
-    const db = getDb();
+    const db = await getDbAsync();
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as User | undefined;
 
     if (!user) {
@@ -129,7 +133,7 @@ export async function loginUser(email: string, password: string): Promise<{ user
 }
 
 export async function registerUser(username: string, email: string, password: string): Promise<{ user: User; accessToken: string; refreshToken: string } | { error: string }> {
-    const db = getDb();
+    const db = await getDbAsync();
 
     const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existingEmail) return { error: 'Email sudah terdaftar' };

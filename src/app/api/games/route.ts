@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 
 export async function GET() {
     try {
-        const db = getDb();
+        const db = await getDbAsync();
         const games = db.prepare('SELECT * FROM games WHERE is_active = 1 ORDER BY name').all();
 
         // Get ranks, modes, roles for each game

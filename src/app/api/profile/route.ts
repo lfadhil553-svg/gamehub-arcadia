@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,7 +8,7 @@ export async function GET() {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
-        const db = getDb();
+        const db = await getDbAsync();
         const userGames = db.prepare(`SELECT ug.*, g.name as game_name, g.icon as game_icon, g.slug,
       r.name as rank_name, r.icon as rank_icon, r.tier,
       gr.name as role_name, gr.icon as role_icon
@@ -55,7 +55,7 @@ export async function PUT(req: Request) {
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
         const { games, avatar } = await req.json();
-        const db = getDb();
+        const db = await getDbAsync();
 
         // Update avatar if provided
         if (avatar && typeof avatar === 'string' && avatar.startsWith('/avatars/')) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDbAsync } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -8,7 +8,7 @@ export async function GET() {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ success: false, error: 'Not authenticated' }, { status: 401 });
 
-        const db = getDb();
+        const db = await getDbAsync();
         const wallet = db.prepare('SELECT * FROM wallets WHERE user_id = ?').get(user.id);
         const transactions = db.prepare('SELECT * FROM wallet_transactions WHERE wallet_id = (SELECT id FROM wallets WHERE user_id = ?) ORDER BY created_at DESC LIMIT 50').all(user.id);
         const rewards = db.prepare('SELECT * FROM reward_items WHERE is_active = 1 ORDER BY cost').all();
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         const { reward_id } = await req.json();
         if (!reward_id) return NextResponse.json({ success: false, error: 'Reward ID wajib' }, { status: 400 });
 
-        const db = getDb();
+        const db = await getDbAsync();
         const reward = db.prepare('SELECT * FROM reward_items WHERE id = ? AND is_active = 1').get(reward_id) as Record<string, unknown>;
         if (!reward) return NextResponse.json({ success: false, error: 'Reward tidak ditemukan' }, { status: 404 });
 
