@@ -11,7 +11,7 @@ interface Game { id: string; name: string; icon: string; slug: string }
 interface PartyItem {
     id: string; title: string; description: string; game_name: string; game_icon: string;
     current_players: number; max_players: number; status: string; region: string;
-    creator_name: string; creator_avatar: string; created_at: string;
+    creator_name: string; creator_avatar: string; created_at: string; my_role?: string;
 }
 
 export default function PartyPage() {
@@ -19,6 +19,7 @@ export default function PartyPage() {
     const router = useRouter();
     const [games, setGames] = useState<Game[]>([]);
     const [parties, setParties] = useState<PartyItem[]>([]);
+    const [myParties, setMyParties] = useState<PartyItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState({ game_id: '', region: '' });
     const [showCreate, setShowCreate] = useState(false);
@@ -40,7 +41,12 @@ export default function PartyPage() {
         if (filter.region) params.set('region', filter.region);
         const res = await fetch(`/api/parties?${params}`);
         const data = await res.json();
-        if (data.success) setParties(data.data);
+        if (data.success) {
+            setMyParties(data.my_parties || []);
+            // Filter out parties user already joined
+            const myIds = new Set((data.my_parties || []).map((p: PartyItem) => p.id));
+            setParties((data.data || []).filter((p: PartyItem) => !myIds.has(p.id)));
+        }
         setLoading(false);
     }, [filter]);
 
@@ -124,7 +130,41 @@ export default function PartyPage() {
                     <input className="input !w-auto min-w-[160px]" placeholder="🔍 Filter region..." value={filter.region} onChange={e => setFilter(p => ({ ...p, region: e.target.value }))} />
                 </div>
 
-                {/* Party List */}
+                {/* My Parties */}
+                {!loading && myParties.length > 0 && (
+                    <div>
+                        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">🎯 Party Saya <span className="badge badge-primary text-xs">{myParties.length}</span></h2>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            {myParties.map((party, i) => (
+                                <motion.div key={party.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                                    <Link href={`/party/${party.id}`} className="card block hover:glow-primary border-primary/20 bg-primary/5">
+                                        <div className="flex items-start gap-3">
+                                            <GameIcon icon={party.game_icon} name={party.game_name} size="lg" />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h3 className="font-bold truncate">{party.title}</h3>
+                                                    <span className={`badge text-xs ${party.my_role === 'leader' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>
+                                                        {party.my_role === 'leader' ? '👑 Leader' : '👤 Member'}
+                                                    </span>
+                                                    <span className={`badge text-xs ${party.status === 'open' ? 'badge-success' : party.status === 'full' ? 'badge-warning' : 'badge-danger'}`}>{party.status}</span>
+                                                </div>
+                                                <p className="text-sm text-text-muted line-clamp-1 mb-2">{party.description}</p>
+                                                <div className="flex items-center gap-4 text-xs text-text-muted">
+                                                    <span>👤 {party.current_players}/{party.max_players}</span>
+                                                    <span>📍 {party.region || 'Global'}</span>
+                                                    <span>🎮 {party.game_name}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Available Parties */}
+                {!loading && <h2 className="text-lg font-bold flex items-center gap-2">🌐 Party Tersedia {parties.length > 0 && <span className="badge badge-success text-xs">{parties.length}</span>}</h2>}
                 {loading ? (
                     <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="skeleton h-32" />)}</div>
                 ) : parties.length > 0 ? (
@@ -154,7 +194,7 @@ export default function PartyPage() {
                 ) : (
                     <div className="card text-center !py-12">
                         <span className="text-5xl block mb-4">🎮</span>
-                        <p className="font-bold text-lg mb-1">Belum Ada Party</p>
+                        <p className="font-bold text-lg mb-1">Belum Ada Party Tersedia</p>
                         <p className="text-text-muted text-sm mb-4">Jadilah yang pertama membuat party!</p>
                         <button onClick={() => setShowCreate(true)} className="btn-primary">➕ Buat Party</button>
                     </div>

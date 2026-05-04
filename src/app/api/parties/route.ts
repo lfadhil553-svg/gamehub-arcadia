@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 export async function GET(req: Request) {
     try {
         const db = await getDbAsync();
+        const user = await getCurrentUser();
         const { searchParams } = new URL(req.url);
         const gameId = searchParams.get('game_id');
         const status = searchParams.get('status') || 'open';
@@ -30,7 +31,19 @@ export async function GET(req: Request) {
         query += ' ORDER BY p.created_at DESC LIMIT 50';
         const parties = db.prepare(query).all(...params);
 
-        return NextResponse.json({ success: true, data: parties });
+        // Fetch parties the user has joined (any status)
+        let myParties: unknown[] = [];
+        if (user) {
+            myParties = db.prepare(`SELECT p.*, g.name as game_name, g.icon as game_icon, u.username as creator_name, u.avatar as creator_avatar, pm.role as my_role
+              FROM party_members pm
+              JOIN parties p ON pm.party_id = p.id
+              JOIN games g ON p.game_id = g.id
+              JOIN users u ON p.creator_id = u.id
+              WHERE pm.user_id = ?
+              ORDER BY pm.joined_at DESC`).all(user.id);
+        }
+
+        return NextResponse.json({ success: true, data: parties, my_parties: myParties });
     } catch {
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }
