@@ -234,6 +234,7 @@ function initializeDatabase(db: CompatDb) {
       locked_until TEXT,
       reputation_score REAL DEFAULT 5.0,
       arcadia_points INTEGER DEFAULT 0,
+      rename_count INTEGER DEFAULT 0,
       referral_code TEXT UNIQUE,
       onboarding_done INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),

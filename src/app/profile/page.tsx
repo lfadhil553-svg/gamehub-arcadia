@@ -11,7 +11,7 @@ import { formatPoints } from '@/lib/utils';
 const AVATAR_OPTIONS = Array.from({ length: 15 }, (_, i) => `/avatars/avatar_${i + 1}.png`);
 
 interface ProfileData {
-    user: { id: string; username: string; email: string; avatar: string; role: string; arcadia_points: number; reputation_score: number; referral_code: string; created_at: string };
+    user: { id: string; username: string; email: string; avatar: string; role: string; arcadia_points: number; reputation_score: number; referral_code: string; created_at: string; rename_count: number };
     games: Array<{ game_name: string; game_icon: string; rank_name: string; rank_icon: string; role_name: string; role_icon: string; is_favorite: number }>;
     stats: { parties_joined: number; tournaments_played: number; tournaments_won: number; win_rate: number; avg_rating: number; total_ratings: number };
 }
@@ -25,6 +25,10 @@ export default function ProfilePage() {
     const [showLangPicker, setShowLangPicker] = useState(false);
     const [showAvatarPicker, setShowAvatarPicker] = useState(false);
     const [savingAvatar, setSavingAvatar] = useState(false);
+    const [showRenameModal, setShowRenameModal] = useState(false);
+    const [newUsername, setNewUsername] = useState('');
+    const [renameLoading, setRenameLoading] = useState(false);
+    const [renameError, setRenameError] = useState('');
 
     useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
     useEffect(() => {
@@ -50,6 +54,31 @@ export default function ProfilePage() {
             setShowAvatarPicker(false);
         }
         setSavingAvatar(false);
+    };
+
+    const handleRename = async () => {
+        if (!newUsername.trim()) return;
+        setRenameLoading(true);
+        setRenameError('');
+        try {
+            const res = await fetch('/api/profile', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: newUsername.trim() }),
+            });
+            const result = await res.json();
+            if (result.success) {
+                setData(prev => prev ? { ...prev, user: { ...prev.user, username: newUsername.trim(), rename_count: prev.user.rename_count + 1, arcadia_points: prev.user.arcadia_points - (result.data.cost || 0) } } : null);
+                if (refreshUser) refreshUser();
+                setShowRenameModal(false);
+                setNewUsername('');
+            } else {
+                setRenameError(result.error || 'Gagal mengubah username');
+            }
+        } catch {
+            setRenameError('Terjadi kesalahan jaringan');
+        }
+        setRenameLoading(false);
     };
 
     if (authLoading || !user) return null;
@@ -80,7 +109,13 @@ export default function ProfilePage() {
                                 </div>
                             </button>
                         </div>
-                        <h1 className="text-2xl font-bold mb-1">{data.user.username}</h1>
+                        <div className="flex items-center justify-center gap-2 mb-1">
+                            <h1 className="text-2xl font-bold">{data.user.username}</h1>
+                            <button onClick={() => { setNewUsername(data.user.username); setRenameError(''); setShowRenameModal(true); }}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-text-muted hover:text-primary hover:bg-primary/10 transition-colors" title="Ganti Gamertag">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                            </button>
+                        </div>
                         <p className="text-text-muted text-sm mb-2">{data.user.email}</p>
                         <div className="flex items-center justify-center gap-3 mb-4">
                             <span className={`badge ${data.user.role === 'superadmin' ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black' : 'badge-primary'}`}>
@@ -93,6 +128,45 @@ export default function ProfilePage() {
                             <span className="font-mono font-bold text-primary">{data.user.referral_code}</span>
                         </div>
                     </motion.div>
+
+                    {/* Rename Modal */}
+                    <AnimatePresence>
+                        {showRenameModal && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+                                onClick={() => setShowRenameModal(false)}>
+                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                                    className="bg-surface rounded-2xl border border-border p-6 w-full max-w-md"
+                                    onClick={e => e.stopPropagation()}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-bold">✏️ Ganti Gamertag</h3>
+                                        <button onClick={() => setShowRenameModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-light">✕</button>
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="block text-sm text-text-muted mb-2">Username Baru</label>
+                                        <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} maxLength={20} placeholder="Masukkan username baru..."
+                                            className="w-full px-4 py-3 rounded-xl bg-surface-light border border-border text-text focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors" />
+                                        <p className="text-xs text-text-muted mt-1">3-20 karakter. Huruf, angka, spasi, dan underscore.</p>
+                                    </div>
+                                    <div className={`p-3 rounded-xl mb-4 text-sm ${data.user.rename_count === 0 ? 'bg-green-500/10 border border-green-500/20 text-green-400' : 'bg-amber-500/10 border border-amber-500/20 text-amber-400'}`}>
+                                        {data.user.rename_count === 0 ? (
+                                            <span>🎉 Rename pertama <strong>GRATIS!</strong></span>
+                                        ) : (
+                                            <span>💰 Biaya rename: <strong>1.000 Arcadia Points</strong> (Saldo: {formatPoints(data.user.arcadia_points)})</span>
+                                        )}
+                                    </div>
+                                    {renameError && <p className="text-red-400 text-sm mb-3">{renameError}</p>}
+                                    <div className="flex gap-3">
+                                        <button onClick={() => setShowRenameModal(false)} className="btn-secondary flex-1">Batal</button>
+                                        <button onClick={handleRename} disabled={renameLoading || !newUsername.trim() || newUsername.trim() === data.user.username}
+                                            className="btn-primary flex-1 disabled:opacity-50">
+                                            {renameLoading ? 'Menyimpan...' : data.user.rename_count === 0 ? 'Ganti Gratis' : 'Ganti (1.000 Poin)'}
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Avatar Picker Modal */}
                     <AnimatePresence>
