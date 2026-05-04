@@ -540,17 +540,20 @@ function seedDatabase(db: CompatDb) {
     (roleSets[game.slug] || []).forEach(role => { db.prepare('INSERT INTO game_roles (id, game_id, name, icon) VALUES (?, ?, ?, ?)').run(seedId('role'), game.id, role.name, role.icon); });
   }
 
-  // Users
+  // Users — each with a different join date
   const superAdminId = seedId('user');
-  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(superAdminId, 'Arch Dev', 'progamer@arcadia.gg', bcrypt.hashSync('dev!@#$-_00', 10), 'superadmin', 1, 1, 999999999, '/avatars/avatar_15.png', 'SUPER-ARCHDEV0');
+  const superAdminDate = new Date(Date.now() - 180 * 86400000).toISOString(); // 6 months ago
+  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(superAdminId, 'Arch Dev', 'progamer@arcadia.gg', bcrypt.hashSync('dev!@#$-_00', 10), 'superadmin', 1, 1, 999999999, '/avatars/avatar_15.png', 'SUPER-ARCHDEV0', superAdminDate);
   db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), superAdminId, 999999999, 999999999);
 
   const adminId = seedId('user');
-  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(adminId, 'Arca Staf', 'admin@arcadia.gg', bcrypt.hashSync('staf-123!@#', 10), 'admin', 1, 1, 1000000, '/avatars/avatar_3.png', 'ADMIN-ARCASTF');
+  const adminDate = new Date(Date.now() - 120 * 86400000).toISOString(); // 4 months ago
+  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(adminId, 'Arca Staf', 'admin@arcadia.gg', bcrypt.hashSync('staf-123!@#', 10), 'admin', 1, 1, 1000000, '/avatars/avatar_3.png', 'ADMIN-ARCASTF', adminDate);
   db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), adminId, 1000000, 1000000);
 
   const demoId = seedId('user');
-  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(demoId, 'GamerPro', 'demo@arcadia.gg', bcrypt.hashSync('demo123', 10), 'user', 1, 1, 2500, '/avatars/avatar_1.png', 'DEMO-GAMERPRO');
+  const demoDate = new Date(Date.now() - 60 * 86400000).toISOString(); // 2 months ago
+  db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(demoId, 'GamerPro', 'demo@arcadia.gg', bcrypt.hashSync('demo123', 10), 'user', 1, 1, 2500, '/avatars/avatar_1.png', 'DEMO-GAMERPRO', demoDate);
   db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), demoId, 2500, 5000);
 
   // ── Expanded user base from seed-data ──
@@ -564,8 +567,11 @@ function seedDatabase(db: CompatDb) {
     createdUserIds.push(suId);
     const avatar = `/avatars/avatar_${(i % 14) + 1}.png`;
     const spent = Math.floor(su.points * 0.3);
-    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, reputation_score, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, su.rep, avatar, su.username.toUpperCase().slice(0, 4) + '-REF0' + i);
+    // Stagger join dates: top users joined 5+ months ago, newer users joined recently
+    const daysAgo = Math.max(1, 150 - i * 4 + (i % 5) * 3);
+    const joinDate = new Date(Date.now() - daysAgo * 86400000).toISOString();
+    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, reputation_score, avatar, referral_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, su.rep, avatar, su.username.toUpperCase().slice(0, 4) + '-REF0' + i, joinDate);
     db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned, lifetime_spent) VALUES (?, ?, ?, ?, ?)')
       .run(seedId('wall'), suId, su.points, su.points + spent, spent);
   }
@@ -594,14 +600,18 @@ function seedDatabase(db: CompatDb) {
     }
   }
 
-  // ── Rewards ──
+  // ── Rewards (digital only — no physical merchandise) ──
   const rewards = [
     { name: 'Diamond Top-Up 100', desc: 'Voucher top up 100 diamonds untuk game favoritmu', cat: 'voucher', cost: 500, stock: 50 },
     { name: 'Gaming Cafe 2 Hours', desc: 'Voucher bermain 2 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 300, stock: 100 },
-    { name: 'Arcadia T-Shirt', desc: 'Kaos eksklusif ARCADIA limited edition', cat: 'merchandise', cost: 2000, stock: 20 },
     { name: 'Tournament VIP Pass', desc: 'Akses premium untuk 1 tournament pilihan', cat: 'tournament_entry', cost: 1000, stock: 30 },
     { name: 'Steam Wallet $5', desc: 'Steam wallet code senilai $5 USD', cat: 'voucher', cost: 1500, stock: 25 },
-    { name: 'Gaming Mousepad XL', desc: 'Mousepad gaming XL dengan desain ARCADIA', cat: 'merchandise', cost: 1200, stock: 15 },
+    { name: 'Google Play $3', desc: 'Kode Google Play senilai $3 USD untuk top-up in-game', cat: 'voucher', cost: 900, stock: 40 },
+    { name: 'Gaming Cafe 5 Hours', desc: 'Voucher premium 5 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 600, stock: 50 },
+    { name: 'Discord Nitro 1 Month', desc: 'Langganan Discord Nitro 1 bulan penuh', cat: 'voucher', cost: 2000, stock: 15 },
+    { name: 'Mobile Legends Starlight', desc: 'Starlight Member MLBB 1 bulan', cat: 'voucher', cost: 1800, stock: 20 },
+    { name: 'Valorant VP 300', desc: '300 Valorant Points untuk beli skin favoritmu', cat: 'voucher', cost: 2500, stock: 10 },
+    { name: 'Tournament Entry x3', desc: 'Gratis entry fee 3 tournament apapun', cat: 'tournament_entry', cost: 1500, stock: 30 },
   ];
   for (const r of rewards) {
     db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)')
@@ -636,10 +646,21 @@ function seedDatabase(db: CompatDb) {
     }
   }
 
-  // ── Friendships ──
-  const friendPool = [demoId, ...createdUserIds];
-  for (const [ai, bi, st] of friendshipPairs) {
-    if (ai < friendPool.length && bi < friendPool.length) {
+  // ── Friendships (includes Arch Dev & Arca Staf) ──
+  // friendPool: [0]=superAdmin, [1]=admin, [2]=demo, [3+]=createdUsers
+  const friendPool = [superAdminId, adminId, demoId, ...createdUserIds];
+  // Arch Dev friends: top players + admin + demo
+  const adminFriends: [number, number, string][] = [
+    [0, 1, 'accepted'], [0, 2, 'accepted'],  // Arch Dev <-> Arca Staf, GamerPro
+    [0, 3, 'accepted'], [0, 4, 'accepted'], [0, 5, 'accepted'], [0, 6, 'accepted'], [0, 7, 'accepted'], // top 5 players
+    [0, 10, 'accepted'], [0, 15, 'accepted'], [0, 20, 'pending'],
+    // Arca Staf friends
+    [1, 2, 'accepted'], [1, 3, 'accepted'], [1, 5, 'accepted'], [1, 8, 'accepted'],
+    [1, 12, 'accepted'], [1, 18, 'accepted'], [1, 25, 'pending'],
+  ];
+  const allFriendPairs = [...adminFriends, ...friendshipPairs.map(([a, b, s]: [number, number, string]) => [a + 3, b + 3, s] as [number, number, string])];
+  for (const [ai, bi, st] of allFriendPairs) {
+    if (ai < friendPool.length && bi < friendPool.length && ai !== bi) {
       try {
         db.prepare('INSERT INTO friendships (id, requester_id, addressee_id, status) VALUES (?, ?, ?, ?)')
           .run(seedId('frnd'), friendPool[ai], friendPool[bi], st);
