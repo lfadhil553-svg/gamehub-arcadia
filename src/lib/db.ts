@@ -553,30 +553,48 @@ function seedDatabase(db: CompatDb) {
   db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(demoId, 'GamerPro', 'demo@arcadia.gg', bcrypt.hashSync('demo123', 10), 'user', 1, 1, 2500, '/avatars/avatar_1.png', 'DEMO-GAMERPRO');
   db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), demoId, 2500, 5000);
 
-  const sampleUsers = [
-    { username: 'ShadowKnight', points: 8500 }, { username: 'NeonBlade', points: 7200 },
-    { username: 'PhantomX', points: 6800 }, { username: 'StarFire', points: 5900 },
-    { username: 'CyberWolf', points: 5100 }, { username: 'ThunderGod', points: 4500 },
-    { username: 'AceHunter', points: 3800 }, { username: 'BlazeMaster', points: 3200 },
-    { username: 'IronClad', points: 2800 }, { username: 'PixelNinja', points: 2100 },
-  ];
+  // ── Expanded user base from seed-data ──
+  const { sampleUsers, partyTemplates, friendshipPairs } = require('./seed-data');
   const sampleHash = bcrypt.hashSync('gamer123', 10);
+  const createdUserIds: string[] = [];
+
   for (let i = 0; i < sampleUsers.length; i++) {
-    const su = sampleUsers[i]; const suId = seedId('user');
-    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, `/avatars/avatar_${(i % 14) + 1}.png`, su.username.toUpperCase().slice(0, 4) + '-REF00' + i);
-    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned) VALUES (?, ?, ?, ?)').run(seedId('wall'), suId, su.points, su.points * 2);
+    const su = sampleUsers[i];
+    const suId = seedId('user');
+    createdUserIds.push(suId);
+    const avatar = `/avatars/avatar_${(i % 14) + 1}.png`;
+    const spent = Math.floor(su.points * 0.3);
+    db.prepare('INSERT INTO users (id, username, email, password_hash, role, is_verified, onboarding_done, arcadia_points, reputation_score, avatar, referral_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(suId, su.username, `${su.username.toLowerCase()}@arcadia.gg`, sampleHash, 'user', 1, 1, su.points, su.rep, avatar, su.username.toUpperCase().slice(0, 4) + '-REF0' + i);
+    db.prepare('INSERT INTO wallets (id, user_id, balance, lifetime_earned, lifetime_spent) VALUES (?, ?, ?, ?, ?)')
+      .run(seedId('wall'), suId, su.points, su.points + spent, spent);
   }
 
-  // Assign demo user games
+  // ── Assign games to ALL users (each user plays 2-4 random games) ──
   const allGames = db.prepare('SELECT id FROM games').all() as Array<{ id: string }>;
-  const allRanks = db.prepare('SELECT id, game_id FROM ranks WHERE tier >= 3 AND tier <= 5').all() as Array<{ id: string; game_id: string }>;
-  for (let i = 0; i < Math.min(3, allGames.length); i++) {
-    const gid = allGames[i].id;
-    const rid = allRanks.find(r => r.game_id === gid)?.id || null;
-    db.prepare('INSERT INTO user_games (id, user_id, game_id, rank_id, is_favorite) VALUES (?, ?, ?, ?, ?)').run(seedId('ugam'), demoId, gid, rid, i === 0 ? 1 : 0);
+  const allRanks = db.prepare('SELECT id, game_id, tier FROM ranks').all() as Array<{ id: string; game_id: string; tier: number }>;
+  const allRoles = db.prepare('SELECT id, game_id FROM game_roles').all() as Array<{ id: string; game_id: string }>;
+  const everyUser = [demoId, ...createdUserIds];
+
+  for (let ui = 0; ui < everyUser.length; ui++) {
+    const uid = everyUser[ui];
+    const numGames = 2 + (ui % 3); // 2, 3, or 4 games
+    for (let gi = 0; gi < numGames && gi < allGames.length; gi++) {
+      const gameOffset = (ui + gi) % allGames.length;
+      const gid = allGames[gameOffset].id;
+      const gameRanks = allRanks.filter(r => r.game_id === gid);
+      const gameRoles = allRoles.filter(r => r.game_id === gid);
+      const rankTier = Math.min(gameRanks.length, 2 + ((ui + gi) % (gameRanks.length - 1)));
+      const rid = gameRanks.find(r => r.tier === rankTier)?.id || gameRanks[0]?.id || null;
+      const roleId = gameRoles.length > 0 ? gameRoles[(ui + gi) % gameRoles.length].id : null;
+      try {
+        db.prepare('INSERT INTO user_games (id, user_id, game_id, rank_id, role_id, is_favorite) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(seedId('ugam'), uid, gid, rid, roleId, gi === 0 ? 1 : 0);
+      } catch { /* skip duplicate */ }
+    }
   }
 
-  // Rewards
+  // ── Rewards ──
   const rewards = [
     { name: 'Diamond Top-Up 100', desc: 'Voucher top up 100 diamonds untuk game favoritmu', cat: 'voucher', cost: 500, stock: 50 },
     { name: 'Gaming Cafe 2 Hours', desc: 'Voucher bermain 2 jam di partner gaming cafe', cat: 'gaming_cafe', cost: 300, stock: 100 },
@@ -586,59 +604,76 @@ function seedDatabase(db: CompatDb) {
     { name: 'Gaming Mousepad XL', desc: 'Mousepad gaming XL dengan desain ARCADIA', cat: 'merchandise', cost: 1200, stock: 15 },
   ];
   for (const r of rewards) {
-    db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)').run(seedId('rwrd'), r.name, r.desc, r.cat, r.cost, r.stock);
+    db.prepare('INSERT INTO reward_items (id, name, description, category, cost, stock) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(seedId('rwrd'), r.name, r.desc, r.cat, r.cost, r.stock);
   }
 
-  // Parties
-  const sampleUserIds: string[] = [];
-  (db.prepare('SELECT id FROM users WHERE id NOT IN (?, ?, ?)').all(demoId, superAdminId, adminId) as Array<{ id: string }>).forEach(u => sampleUserIds.push(u.id));
-  const memberPool = [...sampleUserIds, demoId, adminId];
-
-  const gameParties = [
-    { gameIdx: 0, title: 'Push Rank Bareng Yuk!', desc: 'Butuh teman push rank, minimal Gold.', maxP: 5, region: 'Jakarta', creatorIdx: 0 },
-    { gameIdx: 0, title: 'Valorant Competitive 5 Stack', desc: 'Cari squad ranked, mic wajib.', maxP: 5, region: 'Surabaya', creatorIdx: 1 },
-    { gameIdx: 1, title: 'Chill Gaming Night', desc: 'Main santai malam ini, welcome semua rank.', maxP: 5, region: 'Bandung', creatorIdx: 2 },
-    { gameIdx: 1, title: 'ML Ranked Squad', desc: 'Butuh tank/support untuk push Mythic.', maxP: 5, region: 'Medan', creatorIdx: 3 },
-    { gameIdx: 2, title: 'PUBG Squad Erangel', desc: 'Main squad Erangel classic.', maxP: 4, region: 'Jakarta', creatorIdx: 4 },
-    { gameIdx: 2, title: 'Chicken Dinner Tonight!', desc: 'Cari temen mabar santai.', maxP: 4, region: 'Semarang', creatorIdx: 5 },
-    { gameIdx: 3, title: 'Domain Run AR 55+', desc: 'Butuh bantuan clear domain.', maxP: 4, region: 'Jakarta', creatorIdx: 6 },
-    { gameIdx: 3, title: 'Spiral Abyss Help', desc: 'Co-op farming artifact.', maxP: 4, region: 'Bandung', creatorIdx: 7 },
-    { gameIdx: 4, title: 'Free Fire Ranked Squad', desc: 'Push Heroic bareng!', maxP: 4, region: 'Surabaya', creatorIdx: 8 },
-    { gameIdx: 4, title: 'Clash Squad Pro', desc: 'Latihan clash squad.', maxP: 4, region: 'Makassar', creatorIdx: 9 },
-    { gameIdx: 5, title: 'Apex Trio Ranked', desc: 'Cari squad ranked Apex.', maxP: 3, region: 'Jakarta', creatorIdx: 0 },
-    { gameIdx: 5, title: 'Arenas Practice', desc: 'Latihan arenas mode 3v3.', maxP: 3, region: 'Yogyakarta', creatorIdx: 1 },
-  ];
-
-  gameParties.forEach((p, idx) => {
+  // ── 30+ Parties ──
+  const memberPool = [...createdUserIds, demoId, adminId];
+  for (let idx = 0; idx < partyTemplates.length; idx++) {
+    const p = partyTemplates[idx];
     const partyId = seedId('prty');
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    const hoursAhead = 12 + (idx * 7) % 72;
+    const expiresAt = new Date(Date.now() + hoursAhead * 60 * 60 * 1000).toISOString();
     const gid = allGames[p.gameIdx].id;
-    const creatorId = memberPool[p.creatorIdx % memberPool.length];
-    const membersToFill = idx % 3 === 0 ? p.maxP : Math.max(2, Math.floor(p.maxP * 0.6) + 1);
-    const currentPlayers = Math.min(membersToFill, p.maxP);
+    const creatorId = memberPool[idx % memberPool.length];
+    const fillRatio = [1.0, 0.6, 0.8, 0.4, 0.5][idx % 5];
+    const currentPlayers = Math.max(1, Math.min(p.maxP, Math.round(p.maxP * fillRatio)));
     const status = currentPlayers >= p.maxP ? 'full' : 'open';
 
-    db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(partyId, gid, creatorId, p.title, p.desc, p.maxP, currentPlayers, status, p.region, expiresAt);
-    db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)').run(seedId('pmem'), partyId, creatorId, 'leader');
+    db.prepare('INSERT INTO parties (id, game_id, creator_id, title, description, max_players, current_players, status, region, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(partyId, gid, creatorId, p.title, p.desc, p.maxP, currentPlayers, status, p.region, expiresAt);
+    db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
+      .run(seedId('pmem'), partyId, creatorId, 'leader');
 
     const available = memberPool.filter(id => id !== creatorId);
     for (let m = 1; m < currentPlayers && m <= available.length; m++) {
-      const mid = available[(idx * 3 + m) % available.length];
-      try { db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)').run(seedId('pmem'), partyId, mid, 'member'); } catch { /* dup */ }
+      const mid = available[(idx * 5 + m * 3) % available.length];
+      try {
+        db.prepare('INSERT INTO party_members (id, party_id, user_id, role) VALUES (?, ?, ?, ?)')
+          .run(seedId('pmem'), partyId, mid, 'member');
+      } catch { /* dup */ }
     }
-  });
+  }
 
-  // Tournaments
+  // ── Friendships ──
+  const friendPool = [demoId, ...createdUserIds];
+  for (const [ai, bi, st] of friendshipPairs) {
+    if (ai < friendPool.length && bi < friendPool.length) {
+      try {
+        db.prepare('INSERT INTO friendships (id, requester_id, addressee_id, status) VALUES (?, ?, ?, ?)')
+          .run(seedId('frnd'), friendPool[ai], friendPool[bi], st);
+      } catch { /* skip dup */ }
+    }
+  }
+
+  // ── Daily login history (make users look active) ──
+  for (let ui = 0; ui < Math.min(20, everyUser.length); ui++) {
+    const uid = everyUser[ui];
+    const daysActive = 3 + (ui % 5); // 3-7 days of logins
+    for (let d = 0; d < daysActive; d++) {
+      const date = new Date(Date.now() - d * 86400000).toISOString().split('T')[0];
+      try {
+        db.prepare('INSERT INTO daily_logins (id, user_id, login_date, points_awarded) VALUES (?, ?, ?, ?)')
+          .run(seedId('dlog'), uid, date, 10);
+      } catch { /* dup */ }
+    }
+  }
+
+  // ── Tournaments ──
   [
-    { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi ARCADIA!', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
-    { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend.', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
-    { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points', fee: 500, status: 'ongoing' },
+    { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi ARCADIA season pertama! Hadiah besar menanti.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
+    { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend. Gratis entry!', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
+    { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League nasional.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points + Voucher', fee: 500, status: 'ongoing' },
+    { name: 'Rookie Rumble', desc: 'Khusus pemain baru! Tunjukkan bakatmu.', mode: 'solo', format: 'single_elimination', maxP: 64, teamSize: 1, prize: '50.000 Arcadia Points', fee: 0, status: 'registration' },
+    { name: 'Midnight Showdown', desc: 'Tournament malam hari untuk para night owl.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 3, prize: '250.000 Arcadia Points', fee: 50, status: 'registration' },
   ].forEach((t, idx) => {
     const gid = allGames[idx % allGames.length].id;
-    const regStart = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    const regEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const startDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-    db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(seedId('tour'), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
+    const regStart = new Date(Date.now() - 3 * 86400000).toISOString();
+    const regEnd = new Date(Date.now() + 7 * 86400000).toISOString();
+    const startDate = new Date(Date.now() + 14 * 86400000).toISOString();
+    db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(seedId('tour'), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
   });
 }
 
