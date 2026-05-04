@@ -52,11 +52,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const res = await fetch('/api/auth/me');
             if (res.ok) {
                 const data = await res.json();
-                if (data.success) setUser(data.data);
-                else setUser(null);
-            } else {
-                setUser(null);
+                if (data.success) { setUser(data.data); return; }
             }
+            // If first attempt returns 500 (cold start), retry once after 1s
+            if (res.status === 500) {
+                await new Promise(r => setTimeout(r, 1000));
+                const retry = await fetch('/api/auth/me');
+                if (retry.ok) {
+                    const data = await retry.json();
+                    if (data.success) { setUser(data.data); return; }
+                }
+            }
+            setUser(null);
         } catch {
             setUser(null);
         } finally {

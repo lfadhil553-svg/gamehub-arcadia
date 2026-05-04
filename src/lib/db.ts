@@ -24,6 +24,17 @@ interface CompatDb {
   _raw: SqlJsDatabase; // access to underlying sql.js db for export
 }
 
+// Debounced disk save — avoids writing on every single INSERT during seed,
+// but ensures mutations from user actions are persisted promptly.
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+let _seedingMode = true; // true during initial seed, false after
+
+function scheduleSave() {
+  if (_seedingMode) return; // don't save during seeding (saved once at end)
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => { saveToDisk(); _saveTimer = null; }, 200);
+}
+
 function wrapStmt(sqlDb: SqlJsDatabase, sql: string): PreparedStatement {
   return {
     run(...params: unknown[]) {
@@ -33,12 +44,13 @@ function wrapStmt(sqlDb: SqlJsDatabase, sql: string): PreparedStatement {
         stmt.step();
         stmt.free();
       } catch (e) {
-        // INSERT OR IGNORE may fail on constraint — check if that's ok
         if (sql.includes('OR IGNORE')) return { changes: 0, lastInsertRowid: 0 };
         throw e;
       }
       const r = sqlDb.exec('SELECT changes() as c');
       const changes = r.length > 0 ? (r[0].values[0][0] as number) : 0;
+      // Auto-save after mutations
+      if (changes > 0) scheduleSave();
       return { changes, lastInsertRowid: 0 };
     },
     get(...params: unknown[]): Record<string, unknown> | undefined {
@@ -87,6 +99,7 @@ function createCompatDb(sqlDb: SqlJsDatabase): CompatDb {
         try {
           const result = fn();
           sqlDb.run('COMMIT');
+          scheduleSave();
           return result;
         } catch (e) {
           sqlDb.run('ROLLBACK');
@@ -157,8 +170,9 @@ async function doInit(): Promise<void> {
     db.pragma('foreign_keys = ON');
     initializeDatabase(db);
 
-    // Persist to disk
+    // Persist to disk and enable auto-save for user mutations
     saveToDisk();
+    _seedingMode = false;
   } catch (e) {
     console.error('[ARCADIA DB] Init failed:', e);
     throw e;
