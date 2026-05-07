@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
-import { useLanguage } from '@/lib/i18n';
+import { useLanguage, languageNames, Language } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
@@ -21,10 +21,11 @@ interface DashboardData {
 
 export default function DashboardPage() {
     const { user, loading: authLoading } = useApp();
-    const { t } = useLanguage();
+    const { t, language, setLanguage } = useLanguage();
     const router = useRouter();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showLangPicker, setShowLangPicker] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !user) { router.push('/login'); return; }
@@ -47,9 +48,31 @@ export default function DashboardPage() {
                         className="card bg-gradient-to-r from-primary/10 to-secondary/10 border-primary/20">
                         <div className="flex items-center gap-4">
                             <PlayerAvatar avatar={data.user.avatar} username={data.user.username} size="xl" className="w-16 h-16 text-3xl" />
-                            <div>
+                            <div className="flex-1">
                                 <h1 className="text-2xl font-bold">{t('dash.welcome', { name: data.user.username })}</h1>
                                 <p className="text-text-muted">{t('dash.subtitle')}</p>
+                            </div>
+                            {/* Language Picker */}
+                            <div className="relative">
+                                <button onClick={() => setShowLangPicker(!showLangPicker)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface/80 border border-border text-sm hover:border-primary transition-colors backdrop-blur-sm">
+                                    <span>{languageNames[language]?.split(' ')[0]}</span>
+                                    <svg className={`w-3 h-3 transition-transform ${showLangPicker ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </button>
+                                {showLangPicker && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowLangPicker(false)} />
+                                        <div className="absolute right-0 top-full mt-2 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[70vh] overflow-y-auto">
+                                            {(Object.keys(languageNames) as Language[]).map(lang => (
+                                                <button key={lang} onClick={() => { setLanguage(lang); setShowLangPicker(false); }}
+                                                    className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-light transition-colors flex items-center justify-between ${language === lang ? 'text-primary bg-primary/5' : 'text-text'}`}>
+                                                    {languageNames[lang]}
+                                                    {language === lang && <span>✓</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </motion.div>

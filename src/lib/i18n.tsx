@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 
-export type Language = 'id' | 'en' | 'ja' | 'zh';
+export type Language = 'id' | 'en' | 'ja' | 'zh' | 'ko' | 'th' | 'vi' | 'es' | 'pt' | 'de' | 'fr' | 'ru' | 'ar' | 'hi';
 
 const translations: Record<Language, Record<string, string>> = {
     id: {
@@ -768,11 +768,25 @@ const translations: Record<Language, Record<string, string>> = {
     },
 };
 
+// Import extra language packs
+import { ko, th, vi, es, pt, de, fr, ru, ar, hi } from './translations-extra';
+Object.assign(translations, { ko, th, vi, es, pt, de, fr, ru, ar, hi } as Record<Language, Record<string, string>>);
+
 export const languageNames: Record<Language, string> = {
     id: '🇮🇩 Indonesia',
     en: '🇬🇧 English',
     ja: '🇯🇵 日本語',
     zh: '🇨🇳 中文',
+    ko: '🇰🇷 한국어',
+    th: '🇹🇭 ไทย',
+    vi: '🇻🇳 Tiếng Việt',
+    es: '🇪🇸 Español',
+    pt: '🇧🇷 Português',
+    de: '🇩🇪 Deutsch',
+    fr: '🇫🇷 Français',
+    ru: '🇷🇺 Русский',
+    ar: '🇸🇦 العربية',
+    hi: '🇮🇳 हिन्दी',
 };
 
 const LanguageContext = createContext<{
