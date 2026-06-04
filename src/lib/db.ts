@@ -292,7 +292,7 @@ function initializeDatabase(db: CompatDb) {
       game_mode_id TEXT,
       max_players INTEGER DEFAULT 5,
       current_players INTEGER DEFAULT 1,
-      status TEXT DEFAULT 'open' CHECK(status IN ('open','full','closed')),
+      status TEXT DEFAULT 'open' CHECK(status IN ('open','full','closed','in_game')),
       region TEXT DEFAULT '',
       scheduled_at TEXT,
       expires_at TEXT,

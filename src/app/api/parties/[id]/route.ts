@@ -95,12 +95,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json();
         const { action, target_user_id } = body;
 
-        // Verify the current user is the party leader
         const party = db.prepare('SELECT * FROM parties WHERE id = ?').get(id) as Record<string, unknown> | undefined;
         if (!party) return NextResponse.json({ success: false, error: 'Party tidak ditemukan' }, { status: 404 });
-        if (party.creator_id !== user.id) return NextResponse.json({ success: false, error: 'Hanya leader yang bisa melakukan aksi ini' }, { status: 403 });
 
         if (action === 'kick') {
+            if (party.creator_id !== user.id) return NextResponse.json({ success: false, error: 'Hanya leader yang bisa melakukan aksi ini' }, { status: 403 });
             if (target_user_id === user.id) return NextResponse.json({ success: false, error: 'Tidak bisa kick diri sendiri' }, { status: 400 });
             const member = db.prepare('SELECT id FROM party_members WHERE party_id = ? AND user_id = ?').get(id, target_user_id);
             if (!member) return NextResponse.json({ success: false, error: 'Player tidak ada di party ini' }, { status: 400 });
@@ -112,6 +111,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         }
 
         if (action === 'invite') {
+            if (party.creator_id !== user.id) return NextResponse.json({ success: false, error: 'Hanya leader yang bisa invite' }, { status: 403 });
             if (party.status === 'full' || (party.current_players as number) >= (party.max_players as number)) {
                 return NextResponse.json({ success: false, error: 'Party sudah penuh' }, { status: 400 });
             }
@@ -127,6 +127,64 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             db.prepare('UPDATE parties SET current_players = ?, status = ? WHERE id = ?').run(newCount, newStatus, id);
 
             return NextResponse.json({ success: true, message: `${targetUser.username} berhasil diundang ke party!` });
+        }
+
+        // Ready toggle — any member can toggle
+        if (action === 'ready') {
+            const member = db.prepare('SELECT id, role FROM party_members WHERE party_id = ? AND user_id = ?').get(id, user.id) as { id: string; role: string } | undefined;
+            if (!member) return NextResponse.json({ success: false, error: 'Kamu bukan member party ini' }, { status: 403 });
+            // Toggle ready: role 'member' <-> 'ready', or 'leader' <-> 'leader_ready'
+            const isReady = member.role === 'ready' || member.role === 'leader_ready';
+            const newRole = member.role === 'leader' ? 'leader_ready' : member.role === 'leader_ready' ? 'leader' : isReady ? 'member' : 'ready';
+            db.prepare('UPDATE party_members SET role = ? WHERE party_id = ? AND user_id = ?').run(newRole, id, user.id);
+            return NextResponse.json({ success: true, message: isReady ? 'Status: Belum siap' : 'Status: Siap! ✅', ready: !isReady });
+        }
+
+        // Launch game — leader only, requires all members ready
+        if (action === 'launch') {
+            if (party.creator_id !== user.id) return NextResponse.json({ success: false, error: 'Hanya leader yang bisa launch game' }, { status: 403 });
+            if (party.status === 'in_game') return NextResponse.json({ success: false, error: 'Party sudah dalam game' }, { status: 400 });
+
+            const members = db.prepare('SELECT user_id, role FROM party_members WHERE party_id = ?').all(id) as Array<{ user_id: string; role: string }>;
+            if (members.length < 2) return NextResponse.json({ success: false, error: 'Minimal 2 member untuk launch' }, { status: 400 });
+
+            const notReady = members.filter(m => m.role !== 'ready' && m.role !== 'leader_ready');
+            if (notReady.length > 0) {
+                return NextResponse.json({ success: false, error: `${notReady.length} member belum siap! Semua harus Ready untuk launch.` }, { status: 400 });
+            }
+
+            // Update party status
+            db.prepare('UPDATE parties SET status = ? WHERE id = ?').run('in_game', id);
+
+            // Award points to all members
+            for (const m of members) {
+                db.prepare('UPDATE users SET arcadia_points = arcadia_points + 10 WHERE id = ?').run(m.user_id);
+            }
+
+            // Auto system chat message
+            db.prepare('INSERT INTO party_chat (id, party_id, user_id, message) VALUES (?, ?, ?, ?)').run(
+                uuidv4(), id, user.id, '🚀 Game launched! Semua pemain masuk ke game. Good luck & have fun! +10 Points untuk semua member.'
+            );
+
+            // Get game info for deep link
+            const gameSlug = (db.prepare('SELECT g.slug FROM parties p JOIN games g ON p.game_id = g.id WHERE p.id = ?').get(id) as { slug: string })?.slug || '';
+
+            return NextResponse.json({ success: true, message: 'Game launched! 🚀 +10 Points untuk semua member!', game_slug: gameSlug });
+        }
+
+        // End game — leader only
+        if (action === 'end_game') {
+            if (party.creator_id !== user.id) return NextResponse.json({ success: false, error: 'Hanya leader yang bisa mengakhiri game' }, { status: 403 });
+            db.prepare('UPDATE parties SET status = ? WHERE id = ?').run('open', id);
+            // Reset all members to not-ready
+            db.prepare('UPDATE party_members SET role = ? WHERE party_id = ? AND role = ?').run('member', id, 'ready');
+            db.prepare('UPDATE party_members SET role = ? WHERE party_id = ? AND role = ?').run('leader', id, 'leader_ready');
+
+            db.prepare('INSERT INTO party_chat (id, party_id, user_id, message) VALUES (?, ?, ?, ?)').run(
+                uuidv4(), id, user.id, '🏁 Game selesai! Party kembali ke lobby.'
+            );
+
+            return NextResponse.json({ success: true, message: 'Game berakhir. Party kembali ke lobby.' });
         }
 
         return NextResponse.json({ success: false, error: 'Aksi tidak valid' }, { status: 400 });
