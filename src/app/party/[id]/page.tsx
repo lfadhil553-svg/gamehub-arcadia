@@ -23,14 +23,18 @@ const GAME_LINKS: Record<string, { label: string; url: string; color: string; ic
     'pubg-mobile': { label: 'Login PUBG Mobile', url: 'https://play.google.com/store/apps/details?id=com.tencent.ig', color: 'from-amber-500 to-orange-700', icon: '🔫' },
     'genshin-impact': { label: 'Login Genshin Impact', url: 'https://genshin.hoyoverse.com/launcher', color: 'from-cyan-400 to-blue-600', icon: '⭐' },
     'free-fire': { label: 'Login Free Fire', url: 'https://play.google.com/store/apps/details?id=com.dts.freefireth', color: 'from-yellow-500 to-amber-600', icon: '🔥' },
+    'free-fire-max': { label: 'Login Free Fire MAX', url: 'https://play.google.com/store/apps/details?id=com.dts.freefiremax', color: 'from-orange-500 to-red-600', icon: '🔥' },
     'apex-legends': { label: 'Login Apex Legends', url: 'https://www.ea.com/games/apex-legends', color: 'from-red-600 to-red-800', icon: '🦅' },
 };
 
-function getGameLink(gameName: string) {
-    const slug = Object.keys(GAME_LINKS).find(k =>
-        gameName.toLowerCase().replace(/\s+/g, '-').includes(k) || k.includes(gameName.toLowerCase().replace(/\s+/g, '-'))
-    );
-    return slug ? GAME_LINKS[slug] : null;
+function getGameLinks(gameName: string) {
+    const name = gameName.toLowerCase().replace(/\s+/g, '-');
+    // Free Fire → show both FF and FF MAX
+    if (name.includes('free-fire') || name.includes('freefire')) {
+        return [GAME_LINKS['free-fire'], GAME_LINKS['free-fire-max']];
+    }
+    const slug = Object.keys(GAME_LINKS).find(k => name.includes(k) || k.includes(name));
+    return slug ? [GAME_LINKS[slug]] : [];
 }
 
 export default function PartyDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -133,7 +137,7 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
 
     if (authLoading || !user) return null;
 
-    const gameLink = party ? getGameLink(party.game_name) : null;
+    const gameLinks = party ? getGameLinks(party.game_name) : [];
 
     return (
         <AppLayout>
@@ -170,24 +174,26 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
                             </div>
                         </motion.div>
 
-                        {/* Login Game Button */}
-                        {isMember && gameLink && (
-                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                                <a href={gameLink.url} target="_blank" rel="noopener noreferrer"
-                                    className={`block w-full rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]`}>
-                                    <div className={`bg-gradient-to-r ${gameLink.color} p-5`}>
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl">
-                                                {gameLink.icon}
+                        {/* Login Game Buttons */}
+                        {isMember && gameLinks.length > 0 && (
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
+                                {gameLinks.map((gl, i) => (
+                                    <a key={i} href={gl.url} target="_blank" rel="noopener noreferrer"
+                                        className="block w-full rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
+                                        <div className={`bg-gradient-to-r ${gl.color} p-5`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl">
+                                                    {gl.icon}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-white/70 text-xs font-medium uppercase tracking-wider">Masuk ke Game</p>
+                                                    <p className="text-white text-lg font-bold">{gl.label}</p>
+                                                </div>
+                                                <div className="text-white text-2xl">→</div>
                                             </div>
-                                            <div className="flex-1">
-                                                <p className="text-white/70 text-xs font-medium uppercase tracking-wider">Masuk ke Game</p>
-                                                <p className="text-white text-lg font-bold">{gameLink.label}</p>
-                                            </div>
-                                            <div className="text-white text-2xl">→</div>
                                         </div>
-                                    </div>
-                                </a>
+                                    </a>
+                                ))}
                             </motion.div>
                         )}
 
