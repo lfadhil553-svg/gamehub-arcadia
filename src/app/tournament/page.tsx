@@ -12,6 +12,24 @@ interface TournamentItem {
     id: string; name: string; description: string; game_name: string; game_icon: string;
     mode: string; format: string; max_participants: number; current_participants: number;
     status: string; prize_pool: string; entry_fee: number; start_date: string; organizer_name: string;
+    team_size: number;
+}
+
+const formatLabels: Record<string, string> = {
+    single_elimination: '⚔️ Single Elim',
+    double_elimination: '⚔️ Double Elim',
+    battle_royale: '🏝️ Battle Royale',
+    round_robin: '🔄 Round Robin',
+    time_trial: '⏱️ Time Trial',
+};
+
+function teamLabel(mode: string, teamSize: number): string {
+    if (mode === 'solo') return '👤 Solo';
+    if (teamSize === 2) return '👥 Duo';
+    if (teamSize === 3) return '👥 Trio';
+    if (teamSize === 4) return '👥 Squad (4)';
+    if (teamSize === 5) return '👥 5v5';
+    return `👥 ${teamSize}v${teamSize}`;
 }
 
 export default function TournamentPage() {
@@ -81,16 +99,19 @@ export default function TournamentPage() {
                                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                     <h3 className="font-bold">{t.name}</h3>
                                                     <span className={`badge ${t.status === 'registration' ? 'badge-primary' : t.status === 'ongoing' ? 'badge-warning' : 'badge-success'}`}>{t.status}</span>
-                                                    <span className="badge badge-secondary">{t.mode}</span>
                                                 </div>
-                                                <p className="text-sm text-text-muted line-clamp-1">{t.description}</p>
+                                                <p className="text-sm text-text-muted line-clamp-1 mb-1.5">{t.description}</p>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-secondary/10 text-secondary border border-secondary/20">{teamLabel(t.mode, t.team_size)}</span>
+                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-accent/10 text-accent border border-accent/20">{formatLabels[t.format] || t.format}</span>
+                                                    <span className="text-xs text-text-muted">🎮 {t.game_name}</span>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="flex flex-wrap gap-4 text-sm text-text-muted md:text-right">
-                                            <div><p className="text-text font-bold">{t.current_participants}/{t.max_participants}</p><p className="text-xs">Peserta</p></div>
+                                            <div><p className="text-text font-bold">{t.current_participants}/{t.max_participants}</p><p className="text-xs">{t.mode === 'team' ? 'Tim' : 'Peserta'}</p></div>
                                             <div><p className="text-text font-bold">{t.prize_pool || '-'}</p><p className="text-xs">Hadiah</p></div>
                                             <div><p className="text-text font-bold">{t.entry_fee > 0 ? `${t.entry_fee} pts` : 'Gratis'}</p><p className="text-xs">Entry</p></div>
-                                            <div><p className="text-text font-bold">{t.format.replace('_', ' ')}</p><p className="text-xs">Format</p></div>
                                         </div>
                                     </div>
                                 </Link>

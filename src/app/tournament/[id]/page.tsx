@@ -16,6 +16,23 @@ interface TournamentDetail {
     matches: Array<{ id: string; round: number; match_number: number; player1_id: string; player2_id: string; winner_id: string; score1: number; score2: number; status: string }>;
 }
 
+const formatLabels: Record<string, string> = {
+    single_elimination: '⚔️ Single Elimination',
+    double_elimination: '⚔️ Double Elimination',
+    battle_royale: '🏝️ Battle Royale',
+    round_robin: '🔄 Round Robin',
+    time_trial: '⏱️ Time Trial',
+};
+
+function teamLabel(mode: string, teamSize: number): string {
+    if (mode === 'solo') return '👤 Solo';
+    if (teamSize === 2) return '👥 Duo';
+    if (teamSize === 3) return '👥 Trio (3 pemain)';
+    if (teamSize === 4) return '👥 Squad (4 pemain)';
+    if (teamSize === 5) return '👥 5v5 (5 pemain)';
+    return `👥 ${teamSize} pemain/tim`;
+}
+
 export default function TournamentDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const { user, loading: authLoading, addToast } = useApp();
@@ -60,7 +77,9 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
                                     <h1 className="text-2xl font-bold">{tournament.name}</h1>
                                     <span className={`badge ${tournament.status === 'registration' ? 'badge-primary' : tournament.status === 'ongoing' ? 'badge-warning' : 'badge-success'}`}>{tournament.status}</span>
                                 </div>
-                                <p className="text-text-muted text-sm">{tournament.game_name} • {tournament.mode} • {tournament.format.replace('_', ' ')}</p>
+                                <p className="text-text-muted text-sm">
+                                    {tournament.game_name} • {teamLabel(tournament.mode, tournament.team_size)} • {formatLabels[tournament.format] || tournament.format}
+                                </p>
                                 <p className="text-text-muted text-xs mt-1">by {tournament.organizer_name}</p>
                             </div>
                             <div className="flex flex-col gap-2">
@@ -76,9 +95,9 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
 
                     {/* Stats Row */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="card !p-4 text-center"><p className="text-2xl font-bold">{tournament.current_participants}/{tournament.max_participants}</p><p className="text-xs text-text-muted">Peserta</p></div>
+                        <div className="card !p-4 text-center"><p className="text-2xl font-bold">{tournament.current_participants}/{tournament.max_participants}</p><p className="text-xs text-text-muted">{tournament.mode === 'team' ? 'Tim' : 'Peserta'}</p></div>
                         <div className="card !p-4 text-center"><p className="text-2xl font-bold gradient-text">{tournament.prize_pool || '-'}</p><p className="text-xs text-text-muted">Hadiah</p></div>
-                        <div className="card !p-4 text-center"><p className="text-2xl font-bold">{tournament.team_size}</p><p className="text-xs text-text-muted">Team Size</p></div>
+                        <div className="card !p-4 text-center"><p className="text-2xl font-bold">{tournament.mode === 'solo' ? 'Solo' : `${tournament.team_size}v${tournament.team_size}`}</p><p className="text-xs text-text-muted">Mode</p></div>
                         <div className="card !p-4 text-center"><p className="text-2xl font-bold">{tournament.entry_fee > 0 ? tournament.entry_fee : 'Free'}</p><p className="text-xs text-text-muted">Entry Fee</p></div>
                     </div>
 
@@ -98,10 +117,16 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
                             <h3 className="font-bold mb-3">📋 Informasi Tournament</h3>
                             <div className="space-y-3 text-sm">
                                 <div className="flex justify-between"><span className="text-text-muted">Game</span><span>{tournament.game_name}</span></div>
-                                <div className="flex justify-between"><span className="text-text-muted">Mode</span><span>{tournament.mode}</span></div>
-                                <div className="flex justify-between"><span className="text-text-muted">Format</span><span>{tournament.format.replace('_', ' ')}</span></div>
-                                <div className="flex justify-between"><span className="text-text-muted">Registrasi</span><span>{new Date(tournament.registration_end).toLocaleDateString('id')}</span></div>
-                                <div className="flex justify-between"><span className="text-text-muted">Mulai</span><span>{new Date(tournament.start_date).toLocaleDateString('id')}</span></div>
+                                <div className="flex justify-between"><span className="text-text-muted">Mode</span><span>{teamLabel(tournament.mode, tournament.team_size)}</span></div>
+                                <div className="flex justify-between"><span className="text-text-muted">Format</span><span>{formatLabels[tournament.format] || tournament.format}</span></div>
+                                {tournament.mode === 'team' && (
+                                    <div className="flex justify-between"><span className="text-text-muted">Komposisi Tim</span><span>{tournament.team_size} pemain / tim</span></div>
+                                )}
+                                {tournament.mode === 'team' && (
+                                    <div className="flex justify-between"><span className="text-text-muted">Total Pemain</span><span>{tournament.max_participants} tim × {tournament.team_size} = {tournament.max_participants * tournament.team_size} pemain</span></div>
+                                )}
+                                <div className="flex justify-between"><span className="text-text-muted">Registrasi</span><span>s/d {new Date(tournament.registration_end).toLocaleDateString('id', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
+                                <div className="flex justify-between"><span className="text-text-muted">Mulai</span><span>{new Date(tournament.start_date).toLocaleDateString('id', { day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
                             </div>
                             {tournament.description && (
                                 <div className="mt-4 pt-4 border-t border-border">
@@ -111,8 +136,8 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
                             )}
                             {tournament.rules && (
                                 <div className="mt-4 pt-4 border-t border-border">
-                                    <h4 className="font-medium mb-2">Rules</h4>
-                                    <p className="text-sm text-text-muted whitespace-pre-line">{tournament.rules}</p>
+                                    <h4 className="font-medium mb-2">📜 Peraturan</h4>
+                                    <div className="text-sm text-text-muted whitespace-pre-line bg-surface-light p-4 rounded-xl border border-border">{tournament.rules}</div>
                                 </div>
                             )}
                         </motion.div>
@@ -143,31 +168,46 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
                             <h3 className="font-bold mb-3">🏟️ Bracket</h3>
                             {tournament.matches.length > 0 ? (
                                 <div className="space-y-4">
-                                    {Array.from(new Set(tournament.matches.map(m => m.round))).sort().map(round => (
-                                        <div key={round}>
-                                            <h4 className="text-sm font-medium text-text-muted mb-2">Round {round}</h4>
-                                            <div className="grid md:grid-cols-2 gap-2">
-                                                {tournament.matches.filter(m => m.round === round).map(match => (
-                                                    <div key={match.id} className="p-3 rounded-xl bg-surface-light border border-border">
-                                                        <div className="flex justify-between items-center text-sm">
-                                                            <span className={match.winner_id === match.player1_id ? 'text-success font-bold' : ''}>
-                                                                {tournament.participants.find(p => p.user_id === match.player1_id)?.username || 'TBD'}
-                                                            </span>
-                                                            <span className="text-text-muted">{match.score1 ?? '-'} : {match.score2 ?? '-'}</span>
-                                                            <span className={match.winner_id === match.player2_id ? 'text-success font-bold' : ''}>
-                                                                {tournament.participants.find(p => p.user_id === match.player2_id)?.username || 'TBD'}
-                                                            </span>
+                                    {Array.from(new Set(tournament.matches.map(m => m.round))).sort().map(round => {
+                                        const isElim = tournament.format.includes('elimination');
+                                        const totalRounds = Math.max(...tournament.matches.map(m => m.round));
+                                        const roundName = isElim
+                                            ? round === totalRounds ? '🏆 Grand Final' : round === totalRounds - 1 ? '⚔️ Semi Final' : round === totalRounds - 2 && totalRounds > 2 ? '⚔️ Quarter Final' : `Round ${round}`
+                                            : `Round ${round}`;
+                                        return (
+                                            <div key={round}>
+                                                <h4 className="text-sm font-medium text-text-muted mb-2">{roundName}</h4>
+                                                <div className="grid md:grid-cols-2 gap-2">
+                                                    {tournament.matches.filter(m => m.round === round).map(match => (
+                                                        <div key={match.id} className="p-3 rounded-xl bg-surface-light border border-border">
+                                                            <div className="flex justify-between items-center text-sm">
+                                                                <span className={match.winner_id === match.player1_id ? 'text-success font-bold' : ''}>
+                                                                    {tournament.participants.find(p => p.user_id === match.player1_id)?.username || 'TBD'}
+                                                                </span>
+                                                                <span className="text-text-muted">{match.score1 ?? '-'} : {match.score2 ?? '-'}</span>
+                                                                <span className={match.winner_id === match.player2_id ? 'text-success font-bold' : ''}>
+                                                                    {tournament.participants.find(p => p.user_id === match.player2_id)?.username || 'TBD'}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="text-center py-8 text-text-muted">
                                     <span className="text-4xl block mb-2">🏟️</span>
-                                    <p>Bracket akan ditampilkan setelah tournament dimulai</p>
+                                    {tournament.format.includes('elimination') ? (
+                                        <p>Bracket eliminasi akan di-generate setelah registrasi ditutup dan tournament dimulai</p>
+                                    ) : tournament.format === 'battle_royale' ? (
+                                        <p>Lobby Battle Royale akan dibuat saat tournament dimulai. Semua tim bermain dalam 1 lobby.</p>
+                                    ) : tournament.format === 'time_trial' ? (
+                                        <p>Hasil speedrun/time trial akan ditampilkan setelah tournament dimulai</p>
+                                    ) : (
+                                        <p>Hasil pertandingan akan ditampilkan setelah tournament dimulai</p>
+                                    )}
                                 </div>
                             )}
                         </motion.div>

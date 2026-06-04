@@ -682,21 +682,45 @@ function seedDatabase(db: CompatDb) {
     }
   }
 
-  // ── Tournaments ──
-  [
-    { name: 'Arcadia Championship Season 1', desc: 'Tournament resmi ARCADIA season pertama! Hadiah besar menanti.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration' },
-    { name: 'Weekend Warriors Cup', desc: 'Tournament santai setiap weekend. Gratis entry!', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration' },
-    { name: 'Pro League Qualifier', desc: 'Kualifikasi menuju Pro League nasional.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points + Voucher', fee: 500, status: 'ongoing' },
-    { name: 'Rookie Rumble', desc: 'Khusus pemain baru! Tunjukkan bakatmu.', mode: 'solo', format: 'single_elimination', maxP: 64, teamSize: 1, prize: '50.000 Arcadia Points', fee: 0, status: 'registration' },
-    { name: 'Midnight Showdown', desc: 'Tournament malam hari untuk para night owl.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 3, prize: '250.000 Arcadia Points', fee: 50, status: 'registration' },
-  ].forEach((t, idx) => {
-    const gid = allGames[idx % allGames.length].id;
-    const regStart = new Date(Date.now() - 3 * 86400000).toISOString();
-    const regEnd = new Date(Date.now() + 7 * 86400000).toISOString();
-    const startDate = new Date(Date.now() + 14 * 86400000).toISOString();
-    db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(seedId('tour'), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate);
-  });
+  // ── Tournaments (game-specific with proper team sizes & modes) ──
+  // games[0]=Valorant(5v5), [1]=ML(5v5), [2]=PUBG(4-squad), [3]=Genshin(co-op 4), [4]=Free Fire(4-squad), [5]=Apex(3-squad)
+  const tournamentSeeds = [
+    // === VALORANT (5v5 tactical) ===
+    { gameIdx: 0, name: 'Valorant Champions Cup', desc: 'Tournament Valorant 5v5 Competitive format! Single elimination BO3. Min rank Gold.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '500.000 Arcadia Points', fee: 100, status: 'registration', rules: '• Format: 5v5 Competitive\n• Best of 3 (BO3) per match\n• Map pool: semua map aktif\n• Min rank: Gold\n• Timeout: 1x per half\n• Anti-cheat wajib aktif' },
+    { gameIdx: 0, name: 'Valorant 1v1 Duel Arena', desc: 'Adu skill 1v1 di Deathmatch! Siapa paling jago aim menang.', mode: 'solo', format: 'single_elimination', maxP: 32, teamSize: 1, prize: '100.000 Arcadia Points', fee: 0, status: 'registration', rules: '• Format: 1v1 Deathmatch Custom\n• First to 13 kills\n• Single elimination\n• Semua agent boleh\n• No abilities (aim only mode)' },
+    { gameIdx: 0, name: 'Valorant Pro Qualifier S1', desc: 'Kualifikasi menuju Pro League Valorant nasional. Tim terbaik maju ke final LAN.', mode: 'team', format: 'double_elimination', maxP: 8, teamSize: 5, prize: '1.000.000 Arcadia Points + Voucher Gaming', fee: 500, status: 'ongoing', rules: '• Format: 5v5 Competitive\n• Double Elimination BO3\n• Grand Final BO5\n• Min rank: Diamond\n• Roster lock 5+1 cadangan\n• Jadwal match setiap Sabtu 19:00 WIB' },
+
+    // === MOBILE LEGENDS (5v5 MOBA) ===
+    { gameIdx: 1, name: 'MLBB Squad Championship', desc: 'Tournament resmi Mobile Legends 5v5! Format eliminasi, tunjukkan kerja sama tim terbaikmu.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 5, prize: '300.000 Arcadia Points', fee: 50, status: 'registration', rules: '• Format: 5v5 Custom Ranked Draft\n• Single Elimination BO3\n• Final BO5\n• Ban/pick draft mode\n• Semua hero aktif boleh dipakai\n• No win trading' },
+    { gameIdx: 1, name: 'MLBB Solo Ranked Race', desc: 'Siapa yang bisa naik rank paling tinggi dalam 3 hari? Solo queue only!', mode: 'solo', format: 'round_robin', maxP: 64, teamSize: 1, prize: '50.000 Arcadia Points', fee: 0, status: 'registration', rules: '• Format: Solo Ranked Race\n• Durasi: 3 hari\n• Poin = star gained\n• Screenshot bukti rank wajib\n• Min rank: Grandmaster\n• Cheating = diskualifikasi' },
+    { gameIdx: 1, name: 'MLBB Trio Ranked Cup', desc: 'Main bertiga push rank! Format Trio Ranked, cari 2 teman terbaikmu.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 3, prize: '150.000 Arcadia Points', fee: 25, status: 'registration', rules: '• Format: Trio (3 pemain)\n• Single Elimination BO1\n• Custom lobby Ranked Draft\n• Semua rank welcome\n• Jadwal: setiap Minggu 14:00 WIB' },
+
+    // === PUBG MOBILE (4-man squad) ===
+    { gameIdx: 2, name: 'PUBG Squad Showdown', desc: 'Battle Royale 4-man squad! 16 tim bertarung di Erangel, siapa yang jadi chicken dinner?', mode: 'team', format: 'battle_royale', maxP: 16, teamSize: 4, prize: '400.000 Arcadia Points', fee: 75, status: 'registration', rules: '• Format: Squad (4 pemain)\n• 16 tim per lobby\n• 3 ronde (Erangel, Miramar, Sanhok)\n• Poin: Kill points + placement\n• TPP mode\n• Emulator tidak diperbolehkan' },
+    { gameIdx: 2, name: 'PUBG Solo Hunter', desc: 'Solo vs Solo! 32 pemain bertarung di arena. Last man standing menang.', mode: 'solo', format: 'battle_royale', maxP: 32, teamSize: 1, prize: '80.000 Arcadia Points', fee: 0, status: 'registration', rules: '• Format: Solo Battle Royale\n• 32 pemain per lobby\n• 2 ronde\n• Poin: Kill (1pt) + Placement\n• FPP mode\n• Anti-cheat wajib aktif' },
+
+    // === GENSHIN IMPACT (co-op 4 max) ===
+    { gameIdx: 3, name: 'Spiral Abyss Speedrun', desc: 'Siapa yang bisa clear Spiral Abyss Floor 12 paling cepat? Solo challenge!', mode: 'solo', format: 'time_trial', maxP: 64, teamSize: 1, prize: '75.000 Arcadia Points', fee: 0, status: 'registration', rules: '• Format: Solo Speedrun\n• Target: Abyss Floor 12 (9 stars)\n• Bukti: screen recording full clear\n• Waktu tercepat menang\n• AR 55+ required\n• No exploit/glitch' },
+    { gameIdx: 3, name: 'Genshin Co-op Domain Race', desc: 'Tim 4 orang berlomba clear domain paling cepat! Kerjasama tim penentu kemenangan.', mode: 'team', format: 'time_trial', maxP: 8, teamSize: 4, prize: '120.000 Arcadia Points', fee: 30, status: 'registration', rules: '• Format: Co-op 4 pemain\n• Clear domain tercepat\n• 3 domain berbeda\n• Total waktu terendah menang\n• AR 45+ required\n• Semua karakter boleh' },
+
+    // === FREE FIRE (4-man squad) ===
+    { gameIdx: 4, name: 'Free Fire Clash Squad Cup', desc: 'Tournament Clash Squad 4v4! Format eliminasi langsung, pertarungan intens setiap ronde.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 4, prize: '200.000 Arcadia Points', fee: 30, status: 'registration', rules: '• Format: Clash Squad 4v4\n• Single Elimination BO5\n• Final BO7\n• Semua karakter & senjata\n• No emulator\n• Screenshot lobby wajib' },
+    { gameIdx: 4, name: 'Free Fire Battle Royale Open', desc: 'Battle Royale 4-squad klasik! 12 tim berebut jadi yang terakhir berdiri.', mode: 'team', format: 'battle_royale', maxP: 12, teamSize: 4, prize: '250.000 Arcadia Points', fee: 50, status: 'registration', rules: '• Format: Squad Battle Royale\n• 12 tim per lobby\n• 3 ronde (Bermuda, Kalahari, Purgatory)\n• Poin: Kill + Placement\n• Ranked mode rules apply' },
+
+    // === APEX LEGENDS (3-man squad) ===
+    { gameIdx: 5, name: 'Apex Predator Hunt', desc: 'Tournament Apex Legends 3-man squad! Battle Royale 20 tim, format ALGS-style.', mode: 'team', format: 'battle_royale', maxP: 20, teamSize: 3, prize: '350.000 Arcadia Points', fee: 60, status: 'registration', rules: '• Format: Trio (3 pemain)\n• 20 tim per lobby\n• 4 ronde Battle Royale\n• ALGS scoring: Kill + Placement\n• Min rank: Gold\n• Legend tidak boleh duplikat dalam tim' },
+    { gameIdx: 5, name: 'Apex Arenas Showdown', desc: 'Mode Arenas 3v3! Single elimination bracket, adu strategi dan aim.', mode: 'team', format: 'single_elimination', maxP: 16, teamSize: 3, prize: '150.000 Arcadia Points', fee: 25, status: 'registration', rules: '• Format: Arenas 3v3\n• Single Elimination BO5\n• Final BO7\n• Round economy system\n• Semua Legend boleh\n• No duplicate Legend per tim' },
+  ];
+
+  for (const t of tournamentSeeds) {
+    const gid = games[t.gameIdx].id;
+    const daysOffset = Math.floor(Math.random() * 5);
+    const regStart = new Date(Date.now() - (3 + daysOffset) * 86400000).toISOString();
+    const regEnd = new Date(Date.now() + (7 + daysOffset) * 86400000).toISOString();
+    const startDate = new Date(Date.now() + (14 + daysOffset) * 86400000).toISOString();
+    db.prepare('INSERT INTO tournaments (id, game_id, organizer_id, name, description, mode, format, max_participants, team_size, prize_pool, entry_fee, status, registration_start, registration_end, start_date, rules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(seedId('tour'), gid, adminId, t.name, t.desc, t.mode, t.format, t.maxP, t.teamSize, t.prize, t.fee, t.status, regStart, regEnd, startDate, t.rules);
+  }
 }
 
 export { uuidv4 };

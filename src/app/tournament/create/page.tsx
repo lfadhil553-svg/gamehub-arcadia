@@ -74,8 +74,11 @@ export default function CreateTournamentPage() {
                         <div>
                             <label className="text-sm text-text-muted block mb-1">Format</label>
                             <select className="select" value={form.format} onChange={e => setForm(p => ({ ...p, format: e.target.value }))}>
-                                <option value="single_elimination">Single Elimination</option>
-                                <option value="double_elimination">Double Elimination</option>
+                                <option value="single_elimination">⚔️ Single Elimination</option>
+                                <option value="double_elimination">⚔️ Double Elimination</option>
+                                <option value="battle_royale">🏝️ Battle Royale</option>
+                                <option value="round_robin">🔄 Round Robin</option>
+                                <option value="time_trial">⏱️ Time Trial</option>
                             </select>
                         </div>
                         <div>
