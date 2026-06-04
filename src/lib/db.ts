@@ -337,7 +337,7 @@ function initializeDatabase(db: CompatDb) {
       name TEXT NOT NULL,
       description TEXT DEFAULT '',
       mode TEXT DEFAULT 'solo' CHECK(mode IN ('solo','team')),
-      format TEXT DEFAULT 'single_elimination' CHECK(format IN ('single_elimination','double_elimination')),
+      format TEXT DEFAULT 'single_elimination' CHECK(format IN ('single_elimination','double_elimination','battle_royale','round_robin','time_trial')),
       max_participants INTEGER DEFAULT 16,
       current_participants INTEGER DEFAULT 0,
       team_size INTEGER DEFAULT 1,
