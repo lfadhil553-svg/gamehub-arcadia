@@ -17,24 +17,94 @@ interface PartyDetail {
 
 interface SearchPlayer { id: string; username: string; avatar: string; arcadia_points: number }
 
-const GAME_LINKS: Record<string, { label: string; url: string; color: string; icon: string }> = {
-    'valorant': { label: 'Login Valorant', url: 'https://playvalorant.com/play', color: 'from-red-500 to-red-700', icon: '🎯' },
-    'mobile-legends': { label: 'Login Mobile Legends', url: 'https://play.google.com/store/apps/details?id=com.mobile.legends', color: 'from-blue-500 to-indigo-700', icon: '⚔️' },
-    'pubg-mobile': { label: 'Login PUBG Mobile', url: 'https://play.google.com/store/apps/details?id=com.tencent.ig', color: 'from-amber-500 to-orange-700', icon: '🔫' },
-    'genshin-impact': { label: 'Login Genshin Impact', url: 'https://genshin.hoyoverse.com/launcher', color: 'from-cyan-400 to-blue-600', icon: '⭐' },
-    'free-fire': { label: 'Login Free Fire', url: 'https://play.google.com/store/apps/details?id=com.dts.freefireth', color: 'from-yellow-500 to-amber-600', icon: '🔥' },
-    'free-fire-max': { label: 'Login Free Fire MAX', url: 'https://play.google.com/store/apps/details?id=com.dts.freefiremax', color: 'from-orange-500 to-red-600', icon: '🔥' },
-    'apex-legends': { label: 'Login Apex Legends', url: 'https://www.ea.com/games/apex-legends', color: 'from-red-600 to-red-800', icon: '🦅' },
+interface GameLinkEntry {
+    label: string;
+    deepLink: string;       // URI scheme to open app directly
+    storeUrl: string;       // Fallback: Play Store / website
+    color: string;
+    icon: string;
+    platform: 'mobile' | 'pc' | 'both';
+    packageId?: string;     // Android package ID for intent
+}
+
+const GAME_LINKS: Record<string, GameLinkEntry> = {
+    'valorant': {
+        label: 'Buka Valorant',
+        deepLink: 'riot-client://product/valorant',
+        storeUrl: 'https://playvalorant.com/download',
+        color: 'from-red-500 to-red-700', icon: '🎯', platform: 'pc',
+    },
+    'mobile-legends': {
+        label: 'Buka Mobile Legends',
+        deepLink: 'intent://open#Intent;package=com.mobile.legends;scheme=mobilelegends;end',
+        storeUrl: 'https://play.google.com/store/apps/details?id=com.mobile.legends',
+        color: 'from-blue-500 to-indigo-700', icon: '⚔️', platform: 'mobile',
+        packageId: 'com.mobile.legends',
+    },
+    'pubg-mobile': {
+        label: 'Buka PUBG Mobile',
+        deepLink: 'intent://open#Intent;package=com.tencent.ig;scheme=pubgmobile;end',
+        storeUrl: 'https://play.google.com/store/apps/details?id=com.tencent.ig',
+        color: 'from-amber-500 to-orange-700', icon: '🔫', platform: 'mobile',
+        packageId: 'com.tencent.ig',
+    },
+    'genshin-impact': {
+        label: 'Buka Genshin Impact',
+        deepLink: 'intent://open#Intent;package=com.miHoYo.GenshinImpact;end',
+        storeUrl: 'https://play.google.com/store/apps/details?id=com.miHoYo.GenshinImpact',
+        color: 'from-cyan-400 to-blue-600', icon: '⭐', platform: 'both',
+        packageId: 'com.miHoYo.GenshinImpact',
+    },
+    'free-fire': {
+        label: 'Buka Free Fire',
+        deepLink: 'intent://open#Intent;package=com.dts.freefireth;scheme=freefire;end',
+        storeUrl: 'https://play.google.com/store/apps/details?id=com.dts.freefireth',
+        color: 'from-yellow-500 to-amber-600', icon: '🔥', platform: 'mobile',
+        packageId: 'com.dts.freefireth',
+    },
+    'free-fire-max': {
+        label: 'Buka Free Fire MAX',
+        deepLink: 'intent://open#Intent;package=com.dts.freefiremax;scheme=freefiremax;end',
+        storeUrl: 'https://play.google.com/store/apps/details?id=com.dts.freefiremax',
+        color: 'from-orange-500 to-red-600', icon: '🔥', platform: 'mobile',
+        packageId: 'com.dts.freefiremax',
+    },
+    'apex-legends': {
+        label: 'Buka Apex Legends',
+        deepLink: 'intent://open#Intent;package=com.ea.gp.apexlegendsmobilefps;end',
+        storeUrl: 'https://www.ea.com/games/apex-legends',
+        color: 'from-red-600 to-red-800', icon: '🦅', platform: 'both',
+        packageId: 'com.ea.gp.apexlegendsmobilefps',
+    },
 };
 
 function getGameLinks(gameName: string) {
     const name = gameName.toLowerCase().replace(/\s+/g, '-');
-    // Free Fire → show both FF and FF MAX
     if (name.includes('free-fire') || name.includes('freefire')) {
         return [GAME_LINKS['free-fire'], GAME_LINKS['free-fire-max']];
     }
     const slug = Object.keys(GAME_LINKS).find(k => name.includes(k) || k.includes(name));
     return slug ? [GAME_LINKS[slug]] : [];
+}
+
+function isMobileDevice() {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+}
+
+function launchGame(gl: GameLinkEntry) {
+    const mobile = isMobileDevice();
+    if (mobile && gl.deepLink) {
+        // Try deep link first (opens app directly if installed)
+        window.location.href = gl.deepLink;
+        // Fallback: if app not installed, redirect to store after delay
+        setTimeout(() => {
+            window.open(gl.storeUrl, '_blank');
+        }, 1500);
+    } else {
+        // PC or fallback — open store/website
+        window.open(gl.storeUrl, '_blank');
+    }
 }
 
 export default function PartyDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -174,26 +244,34 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
                             </div>
                         </motion.div>
 
-                        {/* Login Game Buttons */}
+                        {/* Launch Game Buttons */}
                         {isMember && gameLinks.length > 0 && (
                             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-3">
                                 {gameLinks.map((gl, i) => (
-                                    <a key={i} href={gl.url} target="_blank" rel="noopener noreferrer"
-                                        className="block w-full rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98]">
+                                    <button key={i} onClick={() => launchGame(gl)}
+                                        className="block w-full rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] text-left">
                                         <div className={`bg-gradient-to-r ${gl.color} p-5`}>
                                             <div className="flex items-center gap-4">
                                                 <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl">
                                                     {gl.icon}
                                                 </div>
                                                 <div className="flex-1">
-                                                    <p className="text-white/70 text-xs font-medium uppercase tracking-wider">Masuk ke Game</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-white/70 text-xs font-medium uppercase tracking-wider">Masuk ke Game</p>
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/20 text-white/80">
+                                                            {gl.platform === 'mobile' ? '📱 Mobile' : gl.platform === 'pc' ? '💻 PC' : '📱💻'}
+                                                        </span>
+                                                    </div>
                                                     <p className="text-white text-lg font-bold">{gl.label}</p>
                                                 </div>
                                                 <div className="text-white text-2xl">→</div>
                                             </div>
                                         </div>
-                                    </a>
+                                    </button>
                                 ))}
+                                <p className="text-xs text-text-muted text-center">
+                                    {isMobileDevice() ? '📱 Langsung buka game jika sudah terinstall' : '💻 Buka halaman download game'}
+                                </p>
                             </motion.div>
                         )}
 
