@@ -58,7 +58,7 @@ export async function PUT(req: Request) {
         const db = await getDbAsync();
 
         // Update avatar if provided
-        if (avatar && typeof avatar === 'string' && avatar.startsWith('/avatars/')) {
+        if (avatar && typeof avatar === 'string' && (avatar.startsWith('/avatars/') || avatar.startsWith('data:image/'))) {
             db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, user.id);
         }
 

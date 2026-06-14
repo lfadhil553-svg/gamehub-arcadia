@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -29,6 +29,8 @@ export default function ProfilePage() {
     const [newUsername, setNewUsername] = useState('');
     const [renameLoading, setRenameLoading] = useState(false);
     const [renameError, setRenameError] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
     useEffect(() => {
@@ -54,6 +56,43 @@ export default function ProfilePage() {
             setShowAvatarPicker(false);
         }
         setSavingAvatar(false);
+    };
+
+    const uploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Client-side validation
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Format file harus JPG, PNG, GIF, atau WebP');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Ukuran file maksimal 2MB');
+            return;
+        }
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        try {
+            const res = await fetch('/api/profile/upload', { method: 'POST', body: formData });
+            const result = await res.json();
+            if (result.success) {
+                setData(prev => prev ? { ...prev, user: { ...prev.user, avatar: result.data.avatar } } : null);
+                if (refreshUser) refreshUser();
+                setShowAvatarPicker(false);
+            } else {
+                alert(result.error || 'Gagal upload foto');
+            }
+        } catch {
+            alert('Gagal upload foto. Coba lagi.');
+        }
+        setUploading(false);
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleRename = async () => {
@@ -96,7 +135,7 @@ export default function ProfilePage() {
                         <div className="relative inline-block mb-4">
                             <button onClick={() => setShowAvatarPicker(true)}
                                 className="group relative w-24 h-24 rounded-2xl overflow-hidden mx-auto block">
-                                {currentAvatar && currentAvatar.startsWith('/avatars/') ? (
+                                {currentAvatar && (currentAvatar.startsWith('/avatars/') || currentAvatar.startsWith('data:image/')) ? (
                                     // eslint-disable-next-line @next/next/no-img-element
                                     <img src={currentAvatar} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
@@ -181,6 +220,27 @@ export default function ProfilePage() {
                                         <h3 className="text-lg font-bold">🖼️ Pilih Avatar</h3>
                                         <button onClick={() => setShowAvatarPicker(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-light">✕</button>
                                     </div>
+
+                                    {/* Upload Photo */}
+                                    <div className="mb-5 p-4 rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-colors bg-surface-light/50">
+                                        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={uploadAvatar} className="hidden" id="avatar-upload" />
+                                        <label htmlFor="avatar-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                                            {uploading ? (
+                                                <div className="flex items-center gap-2 text-primary">
+                                                    <svg className="animate-spin w-6 h-6" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                                                    <span className="text-sm font-medium">Mengupload...</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-2xl">📷</div>
+                                                    <span className="text-sm font-medium text-primary">Upload Foto Sendiri</span>
+                                                    <span className="text-xs text-text-muted">JPG, PNG, GIF, WebP • Maks 2MB</span>
+                                                </>
+                                            )}
+                                        </label>
+                                    </div>
+
+                                    <p className="text-xs text-text-muted mb-3">Atau pilih avatar:</p>
                                     <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
                                         {AVATAR_OPTIONS.map((av) => (
                                             <button key={av} onClick={() => !savingAvatar && selectAvatar(av)}
@@ -196,7 +256,7 @@ export default function ProfilePage() {
                                             </button>
                                         ))}
                                     </div>
-                                    {savingAvatar && <p className="text-center text-text-muted text-sm mt-3">Menyimpan...</p>}
+                                    {(savingAvatar || uploading) && <p className="text-center text-text-muted text-sm mt-3">Menyimpan...</p>}
                                 </motion.div>
                             </motion.div>
                         )}

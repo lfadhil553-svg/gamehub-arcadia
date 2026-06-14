@@ -17,7 +17,7 @@ const sizeMap = {
 export default function PlayerAvatar({ avatar, username, size = 'md', className = '' }: PlayerAvatarProps) {
     const sizeClass = sizeMap[size];
 
-    if (avatar && avatar.startsWith('/avatars/')) {
+    if (avatar && (avatar.startsWith('/avatars/') || avatar.startsWith('data:image/'))) {
         return (
             <div className={`${sizeClass} rounded-xl overflow-hidden shrink-0 ${className}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
