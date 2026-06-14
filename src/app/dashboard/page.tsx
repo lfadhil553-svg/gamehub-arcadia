@@ -62,7 +62,7 @@ export default function DashboardPage() {
                                 {showLangPicker && (
                                     <>
                                         <div className="fixed inset-0 z-40" onClick={() => setShowLangPicker(false)} />
-                                        <div className="absolute right-0 top-full mt-2 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[70vh] overflow-y-auto">
+                                        <div className="absolute right-0 bottom-full mb-2 w-52 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden max-h-[70vh] overflow-y-auto">
                                             {(Object.keys(languageNames) as Language[]).map(lang => (
                                                 <button key={lang} onClick={() => { setLanguage(lang); setShowLangPicker(false); }}
                                                     className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-light transition-colors flex items-center justify-between ${language === lang ? 'text-primary bg-primary/5' : 'text-text'}`}>
