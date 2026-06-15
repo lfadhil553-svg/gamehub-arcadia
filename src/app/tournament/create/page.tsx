@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BackButton from '@/components/BackButton';
 import { motion } from 'framer-motion';
 
 interface Game { id: string; name: string; icon: string }
@@ -41,6 +42,7 @@ export default function CreateTournamentPage() {
 
     return (
         <AppLayout>
+            <BackButton fallback="/tournament" />
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
                 <h1 className="text-2xl font-bold mb-6">🏆 Buat Tournament Baru</h1>
                 <form onSubmit={handleSubmit} className="card space-y-5">

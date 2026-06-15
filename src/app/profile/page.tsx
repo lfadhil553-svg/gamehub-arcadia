@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BackButton from '@/components/BackButton';
 import GameIcon from '@/components/GameIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage, languageNames, Language } from '@/lib/i18n';
@@ -126,6 +127,7 @@ export default function ProfilePage() {
 
     return (
         <AppLayout>
+            <BackButton fallback="/dashboard" />
             {loading ? <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="skeleton h-32" />)}</div> : data ? (
                 <div className="space-y-6 max-w-3xl mx-auto">
                     {/* Profile Header */}

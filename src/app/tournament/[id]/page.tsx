@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { motion } from 'framer-motion';
+import BackButton from '@/components/BackButton';
 
 interface TournamentDetail {
     id: string; name: string; description: string; game_name: string; game_icon: string;
@@ -113,6 +114,7 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
 
     return (
         <AppLayout>
+            <BackButton fallback="/tournament" />
             {loading ? <div className="skeleton h-96" /> : tournament ? (
                 <div className="space-y-6">
                     {/* Header */}

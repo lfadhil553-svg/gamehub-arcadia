@@ -4,6 +4,7 @@ import { useApp } from '@/lib/context';
 import { useLanguage } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BackButton from '@/components/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatPoints } from '@/lib/utils';
 
@@ -61,6 +62,7 @@ export default function RewardsPage() {
 
     return (
         <AppLayout>
+            <BackButton fallback="/dashboard" />
             {loading ? <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="skeleton h-32" />)}</div> : (
                 <div className="space-y-6">
                     {/* Wallet Card */}

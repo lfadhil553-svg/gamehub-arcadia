@@ -4,6 +4,7 @@ import { useApp } from '@/lib/context';
 import { useLanguage } from '@/lib/i18n';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BackButton from '@/components/BackButton';
 import GameIcon from '@/components/GameIcon';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -104,6 +105,7 @@ export default function FriendsPage() {
 
     return (
         <AppLayout>
+            <BackButton fallback="/dashboard" />
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold">{t('friends.title')}</h1>

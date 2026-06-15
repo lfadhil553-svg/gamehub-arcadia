@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BackButton from '@/components/BackButton';
 import GameIcon from '@/components/GameIcon';
 import { motion } from 'framer-motion';
 
@@ -66,6 +67,7 @@ export default function AdminPage() {
 
     return (
         <AppLayout>
+            <BackButton fallback="/dashboard" />
             {loading ? <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="skeleton h-32" />)}</div> : data ? (
                 <div className="space-y-6">
                     <div>

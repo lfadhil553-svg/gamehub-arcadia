@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
+import BackButton from '@/components/BackButton';
 import GameIcon from '@/components/GameIcon';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -59,6 +60,7 @@ export default function TournamentPage() {
 
     return (
         <AppLayout>
+            <BackButton fallback="/dashboard" />
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>

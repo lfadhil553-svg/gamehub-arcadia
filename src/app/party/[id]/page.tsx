@@ -6,6 +6,7 @@ import AppLayout from '@/components/AppLayout';
 import GameIcon from '@/components/GameIcon';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { motion, AnimatePresence } from 'framer-motion';
+import BackButton from '@/components/BackButton';
 
 interface PartyDetail {
     id: string; title: string; description: string; game_name: string; game_icon: string;
@@ -211,6 +212,7 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
 
     return (
         <AppLayout>
+            <BackButton fallback="/party" />
             {loading ? <div className="skeleton h-96" /> : party ? (
                 <div className="grid lg:grid-cols-3 gap-6">
                     {/* Party Info */}
