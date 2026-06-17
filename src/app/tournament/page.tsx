@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/lib/i18n';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -36,6 +37,7 @@ function teamLabel(mode: string, teamSize: number): string {
 export default function TournamentPage() {
     const { user, loading: authLoading } = useApp();
     const router = useRouter();
+    const { t } = useLanguage();
     const [games, setGames] = useState<Game[]>([]);
     const [tournaments, setTournaments] = useState<TournamentItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -64,11 +66,11 @@ export default function TournamentPage() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">🏆 Tournament</h1>
-                        <p className="text-text-muted text-sm">Kompetisi seru untuk semua game</p>
+                        <h1 className="text-2xl font-bold">{t('tourney.title')}</h1>
+                        <p className="text-text-muted text-sm">{t('tourney.subtitle')}</p>
                     </div>
                     {(user.role === 'organizer' || user.role === 'admin') && (
-                        <Link href="/tournament/create" className="btn-primary">➕ Buat Tournament</Link>
+                        <Link href="/tournament/create" className="btn-primary">{t('tourney.create')}</Link>
                     )}
                 </div>
 
@@ -76,7 +78,7 @@ export default function TournamentPage() {
                 <div className="flex gap-2 overflow-x-auto pb-2">
                     <button onClick={() => setGameFilter('')}
                         className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${!gameFilter ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
-                        Semua
+                        {t('tourney.filter_all')}
                     </button>
                     {games.map(g => (
                         <button key={g.id} onClick={() => setGameFilter(g.id)}
@@ -91,29 +93,29 @@ export default function TournamentPage() {
                     <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="skeleton h-40" />)}</div>
                 ) : tournaments.length > 0 ? (
                     <div className="space-y-4">
-                        {tournaments.map((t, i) => (
-                            <motion.div key={t.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                                <Link href={`/tournament/${t.id}`} className="card block hover:glow-secondary">
+                        {tournaments.map((tr, i) => (
+                            <motion.div key={tr.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+                                <Link href={`/tournament/${tr.id}`} className="card block hover:glow-secondary">
                                     <div className="flex flex-col md:flex-row md:items-center gap-4">
                                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                                            <GameIcon icon={t.game_icon} name={t.game_name} size="xl" />
+                                            <GameIcon icon={tr.game_icon} name={tr.game_name} size="xl" />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                    <h3 className="font-bold">{t.name}</h3>
-                                                    <span className={`badge ${t.status === 'registration' ? 'badge-primary' : t.status === 'ongoing' ? 'badge-warning' : 'badge-success'}`}>{t.status}</span>
+                                                    <h3 className="font-bold">{tr.name}</h3>
+                                                    <span className={`badge ${tr.status === 'registration' ? 'badge-primary' : tr.status === 'ongoing' ? 'badge-warning' : 'badge-success'}`}>{tr.status}</span>
                                                 </div>
-                                                <p className="text-sm text-text-muted line-clamp-1 mb-1.5">{t.description}</p>
+                                                <p className="text-sm text-text-muted line-clamp-1 mb-1.5">{tr.description}</p>
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-secondary/10 text-secondary border border-secondary/20">{teamLabel(t.mode, t.team_size)}</span>
-                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-accent/10 text-accent border border-accent/20">{formatLabels[t.format] || t.format}</span>
-                                                    <span className="text-xs text-text-muted">🎮 {t.game_name}</span>
+                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-secondary/10 text-secondary border border-secondary/20">{teamLabel(tr.mode, tr.team_size)}</span>
+                                                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg bg-accent/10 text-accent border border-accent/20">{formatLabels[tr.format] || tr.format}</span>
+                                                    <span className="text-xs text-text-muted">🎮 {tr.game_name}</span>
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex flex-wrap gap-4 text-sm text-text-muted md:text-right">
-                                            <div><p className="text-text font-bold">{t.current_participants}/{t.max_participants}</p><p className="text-xs">{t.mode === 'team' ? 'Tim' : 'Peserta'}</p></div>
-                                            <div><p className="text-text font-bold">{t.prize_pool || '-'}</p><p className="text-xs">Hadiah</p></div>
-                                            <div><p className="text-text font-bold">{t.entry_fee > 0 ? `${t.entry_fee} pts` : 'Gratis'}</p><p className="text-xs">Entry</p></div>
+                                            <div><p className="text-text font-bold">{tr.current_participants}/{tr.max_participants}</p><p className="text-xs">{tr.mode === 'team' ? 'Tim' : t('tourney.participants')}</p></div>
+                                            <div><p className="text-text font-bold">{tr.prize_pool || '-'}</p><p className="text-xs">{t('tourney.prize')}</p></div>
+                                            <div><p className="text-text font-bold">{tr.entry_fee > 0 ? `${tr.entry_fee} pts` : t('tourney.free')}</p><p className="text-xs">{t('tourney.entry')}</p></div>
                                         </div>
                                     </div>
                                 </Link>
@@ -123,7 +125,7 @@ export default function TournamentPage() {
                 ) : (
                     <div className="card text-center !py-12">
                         <span className="text-5xl block mb-4">🏆</span>
-                        <p className="font-bold text-lg mb-1">Belum Ada Tournament</p>
+                        <p className="font-bold text-lg mb-1">{t('tourney.no_tournament')}</p>
                         <p className="text-text-muted text-sm">Nantikan tournament seru dari ARCADIA!</p>
                     </div>
                 )}

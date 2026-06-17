@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useLanguage } from '@/lib/i18n';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -11,6 +12,7 @@ interface Game { id: string; name: string; icon: string }
 export default function CreateTournamentPage() {
     const { user, loading: authLoading, addToast } = useApp();
     const router = useRouter();
+    const { t } = useLanguage();
     const [games, setGames] = useState<Game[]>([]);
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
@@ -44,18 +46,18 @@ export default function CreateTournamentPage() {
         <AppLayout>
             <BackButton fallback="/tournament" />
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
-                <h1 className="text-2xl font-bold mb-6">🏆 Buat Tournament Baru</h1>
+                <h1 className="text-2xl font-bold mb-6">{t('tourney.create_title')}</h1>
                 <form onSubmit={handleSubmit} className="card space-y-5">
                     <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-sm text-text-muted block mb-1">Game *</label>
+                            <label className="text-sm text-text-muted block mb-1">{t('tourney.game')} *</label>
                             <select className="select" value={form.game_id} onChange={e => setForm(p => ({ ...p, game_id: e.target.value }))} required>
-                                <option value="">Pilih Game</option>
+                                <option value="">{t('tourney.select_game')}</option>
                                 {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="text-sm text-text-muted block mb-1">Nama Tournament *</label>
+                            <label className="text-sm text-text-muted block mb-1">{t('tourney.name')} *</label>
                             <input className="input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Tournament Name" required />
                         </div>
                     </div>
@@ -97,7 +99,7 @@ export default function CreateTournamentPage() {
 
                     <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                            <label className="text-sm text-text-muted block mb-1">Hadiah</label>
+                            <label className="text-sm text-text-muted block mb-1">{t('tourney.prize')}</label>
                             <input className="input" value={form.prize_pool} onChange={e => setForm(p => ({ ...p, prize_pool: e.target.value }))} placeholder="100.000 Arcadia Points" />
                         </div>
                         <div>
@@ -112,7 +114,7 @@ export default function CreateTournamentPage() {
                     </div>
 
                     <button type="submit" disabled={loading} className="btn-primary w-full !py-3">
-                        {loading ? '⏳ Membuat...' : '🏆 Buat Tournament'}
+                        {loading ? '⏳ Membuat...' : t('tourney.submit')}
                     </button>
                 </form>
             </motion.div>

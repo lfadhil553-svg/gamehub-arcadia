@@ -122,6 +122,8 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
     const [searching, setSearching] = useState(false);
     const [kickingId, setKickingId] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
+    const chatImageRef = useRef<HTMLInputElement>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     useEffect(() => { if (!authLoading && !user) router.push('/login'); }, [user, authLoading, router]);
 
@@ -204,6 +206,36 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
             setMessage('');
             setParty(prev => prev ? { ...prev, chat: [...prev.chat, data.data] } : prev);
         } else addToast(data.error, 'error');
+    };
+
+    const sendPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 1 * 1024 * 1024) { addToast('Ukuran gambar maks 1MB', 'error'); return; }
+        setUploadingImage(true);
+        const formData = new FormData();
+        formData.append('image', file);
+        if (message.trim()) formData.append('message', message);
+        try {
+            const res = await fetch(`/api/parties/${id}/chat`, { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                setMessage('');
+                setParty(prev => prev ? { ...prev, chat: [...prev.chat, data.data] } : prev);
+            } else addToast(data.error, 'error');
+        } catch { addToast('Gagal mengirim foto', 'error'); }
+        setUploadingImage(false);
+        if (chatImageRef.current) chatImageRef.current.value = '';
+    };
+
+    const parseMessage = (msg: string) => {
+        if (msg.startsWith('[IMG]')) {
+            const hasText = msg.includes('[/IMG]');
+            const imageData = hasText ? msg.slice(5, msg.indexOf('[/IMG]')) : msg.slice(5);
+            const textPart = hasText ? msg.slice(msg.indexOf('[/IMG]') + 6) : '';
+            return { type: 'image' as const, image: imageData, text: textPart };
+        }
+        return { type: 'text' as const, image: '', text: msg };
     };
 
     if (authLoading || !user) return null;
@@ -317,7 +349,13 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
                                         <PlayerAvatar avatar={msg.avatar} username={msg.username} size="sm" />
                                         <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${msg.user_id === user.id ? 'bg-primary/20 text-text' : 'bg-surface-light'}`}>
                                             {msg.user_id !== user.id && <p className="text-xs font-medium text-primary mb-0.5">{msg.username}</p>}
-                                            <p className="text-sm">{msg.message}</p>
+                                            {(() => { const parsed = parseMessage(msg.message); return (<>
+                                                {parsed.image && (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img src={parsed.image} alt="Foto" className="rounded-lg max-w-full max-h-48 object-cover mb-1 cursor-pointer hover:opacity-90" onClick={() => window.open(parsed.image, '_blank')} />
+                                                )}
+                                                {parsed.text && <p className="text-sm">{parsed.text}</p>}
+                                            </>); })()}
                                             <p className="text-[10px] text-text-muted mt-1">{new Date(msg.created_at).toLocaleTimeString('id')}</p>
                                         </div>
                                     </div>
@@ -326,7 +364,12 @@ export default function PartyDetailPage({ params }: { params: Promise<{ id: stri
                             </div>
 
                             {isMember ? (
-                                <form onSubmit={sendMessage} className="flex gap-2">
+                                <form onSubmit={sendMessage} className="flex gap-2 items-center">
+                                    <input ref={chatImageRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={sendPhoto} className="hidden" id="chat-photo" />
+                                    <button type="button" onClick={() => chatImageRef.current?.click()} disabled={uploadingImage}
+                                        className="shrink-0 w-10 h-10 rounded-xl bg-surface-light border border-border flex items-center justify-center text-lg hover:border-primary hover:text-primary transition-colors" title="Kirim Foto">
+                                        {uploadingImage ? <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : '📷'}
+                                    </button>
                                     <input className="input flex-1" value={message} onChange={e => setMessage(e.target.value)} placeholder="Tulis pesan..." maxLength={500} />
                                     <button type="submit" disabled={sending || !message.trim()} className="btn-primary !px-6">
                                         {sending ? '⏳' : '📩'}

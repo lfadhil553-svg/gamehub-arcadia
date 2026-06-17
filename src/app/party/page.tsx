@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useLanguage } from '@/lib/i18n';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
@@ -18,6 +19,7 @@ interface PartyItem {
 export default function PartyPage() {
     const { user, loading: authLoading, addToast } = useApp();
     const router = useRouter();
+    const { t } = useLanguage();
     const [games, setGames] = useState<Game[]>([]);
     const [parties, setParties] = useState<PartyItem[]>([]);
     const [myParties, setMyParties] = useState<PartyItem[]>([]);
@@ -74,11 +76,11 @@ export default function PartyPage() {
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">🎮 Party Finder</h1>
-                        <p className="text-text-muted text-sm">Cari teman mabar lintas game</p>
+                        <h1 className="text-2xl font-bold">{t('party.title')}</h1>
+                        <p className="text-text-muted text-sm">{t('party.subtitle')}</p>
                     </div>
                     <button onClick={() => setShowCreate(!showCreate)} className="btn-primary">
-                        ➕ Buat Party
+                        {t('party.create')}
                     </button>
                 </div>
 
@@ -87,37 +89,37 @@ export default function PartyPage() {
                     {showCreate && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                             className="card border-primary/30">
-                            <h3 className="font-bold mb-4">🎮 Buat Party Baru</h3>
+                            <h3 className="font-bold mb-4">{t('party.create_title')}</h3>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm text-text-muted block mb-1">Game *</label>
+                                    <label className="text-sm text-text-muted block mb-1">{t('party.game')} *</label>
                                     <select className="select" value={createData.game_id} onChange={e => setCreateData(p => ({ ...p, game_id: e.target.value }))}>
-                                        <option value="">Pilih Game</option>
+                                        <option value="">{t('party.select_game')}</option>
                                         {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm text-text-muted block mb-1">Judul *</label>
-                                    <input className="input" value={createData.title} onChange={e => setCreateData(p => ({ ...p, title: e.target.value }))} placeholder="Contoh: Push Rank Bareng!" />
+                                    <label className="text-sm text-text-muted block mb-1">{t('party.name')} *</label>
+                                    <input className="input" value={createData.title} onChange={e => setCreateData(p => ({ ...p, title: e.target.value }))} placeholder={t('party.name_placeholder')} />
                                 </div>
                                 <div>
-                                    <label className="text-sm text-text-muted block mb-1">Region</label>
+                                    <label className="text-sm text-text-muted block mb-1">{t('party.region')}</label>
                                     <input className="input" value={createData.region} onChange={e => setCreateData(p => ({ ...p, region: e.target.value }))} placeholder="Jakarta, Bandung, dll" />
                                 </div>
                                 <div>
-                                    <label className="text-sm text-text-muted block mb-1">Max Player</label>
+                                    <label className="text-sm text-text-muted block mb-1">{t('party.max_players')}</label>
                                     <select className="select" value={createData.max_players} onChange={e => setCreateData(p => ({ ...p, max_players: parseInt(e.target.value) }))}>
                                         {[2, 3, 4, 5, 6, 8, 10, 15, 20, 25, 50, 100].map(n => <option key={n} value={n}>{n} player</option>)}
                                     </select>
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="text-sm text-text-muted block mb-1">Deskripsi</label>
-                                    <textarea className="input !h-20 resize-none" value={createData.description} onChange={e => setCreateData(p => ({ ...p, description: e.target.value }))} placeholder="Deskripsi party..." />
+                                    <label className="text-sm text-text-muted block mb-1">{t('party.description')}</label>
+                                    <textarea className="input !h-20 resize-none" value={createData.description} onChange={e => setCreateData(p => ({ ...p, description: e.target.value }))} placeholder={t('party.desc_placeholder')} />
                                 </div>
                             </div>
                             <div className="flex gap-3 mt-4">
-                                <button onClick={handleCreate} disabled={creating} className="btn-primary">{creating ? '⏳' : '🚀'} {creating ? 'Membuat...' : 'Buat Party'}</button>
-                                <button onClick={() => setShowCreate(false)} className="btn-secondary">Batal</button>
+                                <button onClick={handleCreate} disabled={creating} className="btn-primary">{creating ? '⏳ Membuat...' : t('party.submit')}</button>
+                                <button onClick={() => setShowCreate(false)} className="btn-secondary">{t('party.cancel')}</button>
                             </div>
                         </motion.div>
                     )}
@@ -126,7 +128,7 @@ export default function PartyPage() {
                 {/* Filters */}
                 <div className="flex flex-wrap gap-3">
                     <select className="select !w-auto min-w-[160px]" value={filter.game_id} onChange={e => setFilter(p => ({ ...p, game_id: e.target.value }))}>
-                        <option value="">Semua Game</option>
+                        <option value="">{t('party.filter_all')}</option>
                         {games.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
                     <input className="input !w-auto min-w-[160px]" placeholder="🔍 Filter region..." value={filter.region} onChange={e => setFilter(p => ({ ...p, region: e.target.value }))} />
@@ -196,9 +198,9 @@ export default function PartyPage() {
                 ) : (
                     <div className="card text-center !py-12">
                         <span className="text-5xl block mb-4">🎮</span>
-                        <p className="font-bold text-lg mb-1">Belum Ada Party Tersedia</p>
-                        <p className="text-text-muted text-sm mb-4">Jadilah yang pertama membuat party!</p>
-                        <button onClick={() => setShowCreate(true)} className="btn-primary">➕ Buat Party</button>
+                        <p className="font-bold text-lg mb-1">{t('party.empty')}</p>
+                        <p className="text-text-muted text-sm mb-4">{t('party.create_first')}</p>
+                        <button onClick={() => setShowCreate(true)} className="btn-primary">{t('party.create')}</button>
                     </div>
                 )}
             </div>
