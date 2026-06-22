@@ -77,12 +77,12 @@ export default function TournamentPage() {
                 {/* Game Filter */}
                 <div className="flex gap-2 overflow-x-auto pb-2">
                     <button onClick={() => setGameFilter('')}
-                        className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${!gameFilter ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
+                        className={`shrink-0 px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${!gameFilter ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
                         {t('tourney.filter_all')}
                     </button>
                     {games.map(g => (
                         <button key={g.id} onClick={() => setGameFilter(g.id)}
-                            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${gameFilter === g.id ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
+                            className={`shrink-0 px-6 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${gameFilter === g.id ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
                             <GameIcon icon={g.icon} name={g.name} size="sm" /> {g.name}
                         </button>
                     ))}

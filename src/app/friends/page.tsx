@@ -116,7 +116,7 @@ export default function FriendsPage() {
                 <div className="flex gap-2 overflow-x-auto pb-2">
                     {tabs.map(t => (
                         <button key={t.key} onClick={() => setTab(t.key)}
-                            className={`shrink-0 px-5 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${tab === t.key ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
+                            className={`shrink-0 px-7 py-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${tab === t.key ? 'bg-primary text-white' : 'bg-surface border border-border text-text-muted hover:text-text'}`}>
                             {t.label}
                             {t.count > 0 && <span className="bg-white/20 text-xs px-1.5 py-0.5 rounded-full">{t.count}</span>}
                         </button>
