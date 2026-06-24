@@ -319,25 +319,28 @@ export default function ProfilePage() {
                         <h3 className="font-bold mb-4">{t('profile.settings')}</h3>
                         <div className="flex items-center justify-between">
                             <span className="text-sm">{t('profile.language')}</span>
-                            <div className="relative">
-                                <button onClick={() => setShowLangPicker(!showLangPicker)}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-light border border-border text-sm hover:border-primary transition-colors">
-                                    {languageNames[language]}
-                                    <svg className={`w-4 h-4 transition-transform ${showLangPicker ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                </button>
-                                {showLangPicker && (
-                                    <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl shadow-xl z-50 overflow-hidden">
-                                        {(Object.keys(languageNames) as Language[]).map(lang => (
-                                            <button key={lang} onClick={() => { setLanguage(lang); setShowLangPicker(false); }}
-                                                className={`w-full text-left px-4 py-3 text-sm hover:bg-surface-light transition-colors flex items-center justify-between ${language === lang ? 'text-primary bg-primary/5' : 'text-text'}`}>
-                                                {languageNames[lang]}
-                                                {language === lang && <span>✓</span>}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            <button onClick={() => setShowLangPicker(!showLangPicker)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-light border border-border text-sm hover:border-primary transition-colors">
+                                {languageNames[language]}
+                                <svg className={`w-4 h-4 transition-transform ${showLangPicker ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </button>
                         </div>
+                        {showLangPicker && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="overflow-hidden mt-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <p className="text-sm font-medium text-text-muted">🌐 {language === 'en' ? 'Select Language' : 'Pilih Bahasa'}</p>
+                                    <button onClick={() => setShowLangPicker(false)} className="text-xs text-text-muted hover:text-text">✕</button>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                    {(Object.keys(languageNames) as Language[]).map(lang => (
+                                        <button key={lang} onClick={() => { setLanguage(lang); setShowLangPicker(false); }}
+                                            className={`text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${language === lang ? 'bg-primary/15 text-primary border border-primary/30 font-medium' : 'bg-surface-light hover:bg-surface border border-transparent hover:border-border'}`}>
+                                            {languageNames[lang]}
+                                        </button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
                     </div>
 
                     {/* Actions */}
