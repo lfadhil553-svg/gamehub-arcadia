@@ -23,7 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const { user, toasts, removeToast, logout } = useApp();
     const { t } = useLanguage();
     const pathname = usePathname();
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(true);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [isDesktop, setIsDesktop] = useState(false);
 
@@ -33,8 +33,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const check = () => setIsDesktop(window.innerWidth >= 1024);
         check();
         window.addEventListener('resize', check);
+        // Restore sidebar preference
+        const saved = localStorage.getItem('arcadia_sidebar');
+        if (saved !== null) setCollapsed(saved === 'collapsed');
         return () => window.removeEventListener('resize', check);
     }, []);
+
+    const toggleSidebar = () => {
+        setCollapsed(c => {
+            const next = !c;
+            localStorage.setItem('arcadia_sidebar', next ? 'collapsed' : 'expanded');
+            return next;
+        });
+    };
 
     const contentMargin = isDesktop ? sideW : 0;
 
@@ -66,7 +77,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             </div>
                         )}
                     </Link>
-                    <button onClick={() => setCollapsed(c => !c)}
+                    <button onClick={toggleSidebar}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-text-muted hover:text-primary hover:bg-primary/10 transition-all shrink-0"
                         title={collapsed ? 'Buka sidebar' : 'Tutup sidebar'}>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4"
